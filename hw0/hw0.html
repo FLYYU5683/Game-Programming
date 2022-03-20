@@ -7,27 +7,51 @@ body {
 	margin:0;
 	padding:0;
 }
+#info {
+	position: absolute;
+	width: 100%;
+	text-align: center;
+	color: #ffff00;
+}
 </style>
 </head>
 
 <body>
 
+<div id = "info"><br>
+<button id = 'toggle' style = "height:50px;width: 8%;margin-right:0px;background-color:pink;">Start</button>
+</div>
+
 <script src="https://threejs.org/build/three.min.js"></script>
 <script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
-<script src="https://raw.githack.com/mrdoob/three.js/dev/examples/js/loaders/MTLLoader.js"></script>
-<script src="https://raw.githack.com/mrdoob/three.js/dev/examples/js/loaders/OBJLoader.js"></script>
+<script src="https://threejs.org/examples/js/loaders/OBJLoader.js"></script>
+<script src="https://threejs.org/examples/js/loaders/MTLLoader.js"></script>
+<script
+  src="https://code.jquery.com/jquery-3.6.0.min.js"
+  integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4="
+  crossorigin="anonymous"></script>
 
 <script>
 
+$("#toggle").click(function(){
+	turn = !turn;
+	if(turn)
+		$("#toggle").text("Stop");
+	else
+		$("#toggle").text("Go");
+})
+
 var renderer, scene, camera;
-var cube;
 var clock,angle = 0;
-var bugatti = 'thomas';
-var thomas;
+var thomas = [];
+var count = 0;
+var turn = false;
+
 init();
 animate();
 
 function init () {
+	
 	clock = new THREE.Clock()
 	renderer = new THREE.WebGLRenderer();
 	document.body.appendChild (renderer.domElement);
@@ -35,13 +59,13 @@ function init () {
 	var height = window.innerHeight;
 	renderer.setSize (width, height);
 	
-	renderer.setClearColor (0x888888);
+	renderer.setClearColor (0x000000);
 	
 	scene = new THREE.Scene();
 	var grid = new THREE.GridHelper(200,20, 0xaaaa00, 0x333333);
-	scene.add (grid);
+	//scene.add (grid);
 	var axes = new THREE.AxesHelper (5);
-	scene.add (axes);
+	//scene.add (axes);
 	
 	camera = new THREE.PerspectiveCamera (35, width/height, 1, 10000);
 	camera.position.y = 100;
@@ -50,21 +74,70 @@ function init () {
 	
 	let controls = new THREE.OrbitControls(camera, renderer.domElement);
 	
+	var ambientLight = new THREE.AmbientLight(0xffffff);
+	scene.add(ambientLight);
+	
+	var directionalLight = new THREE.DirectionalLight(0xffffff);
+	directionalLight.position.set(0, 0, 1).normalize();
+	scene.add(directionalLight);
+
+	var pointLight = new THREE.PointLight (0xffffff);
+	pointLight.position.set (100,200,-100);
+	scene.add (pointLight);
+	
 	window.addEventListener('resize', onWindowResize, false);
 	///////////////////////////////////////////////////////////////
-
-	readModel (bugatti);
+	for(var k = 0; k < 4; k++)
+		readModel ('thomas');
 		
+	makeTrack(76.5);
+	makeTrack(84.5);
+	
+	for(var i = 0; i <= 100; i++){
+		var points = [];
+		
+		theta = i * Math.PI*2/100;
+		
+		var point  = new THREE.Vector3(84.5*Math.cos(theta),0,84.5*Math.sin(theta));
+		points.push(point);	
+		
+		point  = new THREE.Vector3(76.5*Math.cos(theta),0,76.5*Math.sin(theta));
+		points.push(point);
+		
+		var line = new THREE.Line (new THREE.BufferGeometry().setFromPoints(points),new THREE.LineBasicMaterial({color:0x696969}));
+		scene.add(line);
+	}
+
+
 }
 
 function animate() {
 	var dt = clock.getDelta();
-	angle +=  dt * Math.PI / 15;
-	if(thomas !== undefined){
-		camera.position.set( 120 * Math.cos(angle+0.7) , 10 , -120 * Math.sin(angle+0.7));
-		camera.lookAt (thomas.position);
-		thomas.position.set( 80 * Math.cos(angle) , 10 , -80 * Math.sin(angle));
-		thomas.rotation.y = angle + 2* Math.PI;
+	if(turn)
+		angle +=  dt * Math.PI / 15;
+	if(thomas[0] !== undefined){
+		//camera.position.set( 105 * Math.cos(angle+0.7) , 10 , -105 * Math.sin(angle+0.7));
+		//camera.lookAt (thomas.position);
+		thomas[0].position.set( 80 * Math.cos(angle) , 10 , -80 * Math.sin(angle));
+		thomas[0].rotation.y = angle -Math.PI/2 ;
+	}	
+	if(thomas[1] !== undefined){
+		//camera.position.set( 105 * Math.cos(angle+0.7) , 10 , -105 * Math.sin(angle+0.7));
+		//camera.lookAt (thomas.position);
+		thomas[1].position.set( 80 * Math.cos(angle+Math.PI/2) , 10 , -80 * Math.sin(angle+Math.PI/2));
+		thomas[1].rotation.y = angle;
+	}	
+	if(thomas[2] !== undefined){
+		//camera.position.set( 105 * Math.cos(angle+0.7) , 10 , -105 * Math.sin(angle+0.7));
+		//camera.lookAt (thomas.position);
+		thomas[2].position.set( 80 * Math.cos(angle+Math.PI) , 10 , -80 * Math.sin(angle+Math.PI));
+		thomas[2].rotation.y = angle+Math.PI/2;
+	}
+	if(thomas[3] !== undefined){
+		//camera.position.set( 105 * Math.cos(angle+0.7) , 10 , -105 * Math.sin(angle+0.7));
+		//camera.lookAt (thomas.position);
+		thomas[3].position.set( 80 * Math.cos(angle-Math.PI/2) , 10 , -80 * Math.sin(angle-Math.PI/2));
+		thomas[3].rotation.y = angle + 1* Math.PI;
 	}
 	requestAnimationFrame(animate);
 	render();
@@ -87,8 +160,21 @@ function onWindowResize() {
 	
 }
 
-function readModel (modelName, targetSize=40) {
+function makeTrack(size){
+	var points = [];
+	var theta = 0;
+	for(var i = 0; i <= 100; i++)
+	{
+		theta = i * Math.PI*2/100;
+		var point  = new THREE.Vector3(size*Math.cos(theta),0,size*Math.sin(theta))
+		points.push(point);
+	}
+	var geom = new THREE.BufferGeometry().setFromPoints(points);
+	var line = new THREE.Line (geom,new THREE.LineBasicMaterial({color:0x8B4513}))
+	scene.add(line);
+}
 
+function readModel (modelName, targetSize=40) {
   var onProgress = function(xhr) {
     if (xhr.lengthComputable) {
       var percentComplete = xhr.loaded / xhr.total * 100;
@@ -109,19 +195,17 @@ function readModel (modelName, targetSize=40) {
     objLoader.setPath('models/');
     objLoader.load(modelName+'.obj', function(object) {
 		
-		thomas =  unitize (object, targetSize);
+		var car =  unitize (object, targetSize);
 		//theObject.add ( new THREE.BoxHelper (theObject) )
-		thomas.name = 'OBJ'
-		scene.add (thomas);
-
-		
-		thomas.setRotationFromEuler (new THREE.Euler (3.1416/2, 0, -3.1416/2, 'ZYX'))
-		thomas.rotation.x += - Math.PI/2;		
-		
+		car.name = 'OBJ'
+		scene.add (car);
+		car.setRotationFromEuler (new THREE.Euler (3.1416/2, 0, -3.1416/2, 'ZYX'))
+		car.rotation.x += - Math.PI/2;
+		thomas[count] = car;
+		count++;
     }, onProgress, onError);
 
   });
-
 }
 
 ////////////////////////////////////////
@@ -150,7 +234,6 @@ function unitize (object, targetSize) {
 	theObject.add (object);
 	object.scale.set (scaleSet, scaleSet, scaleSet);
 	object.position.set (-center.x*scaleSet, -center.y*scaleSet, -center.z*scaleSet);
-	
 	return theObject;
 			
 }
