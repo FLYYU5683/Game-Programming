@@ -7,34 +7,17 @@ body {
 	margin:0;
 	padding:0;
 }
-<<<<<<< HEAD
-=======
 #info {
 	position: absolute;
 	width: 100%;
 	text-align: center;
 	color: #ffff00;
 }
->>>>>>> main
 </style>
 </head>
 
 <body>
 
-<<<<<<< HEAD
-<script src="https://threejs.org/build/three.min.js"></script>
-<script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
-<script src="https://raw.githack.com/mrdoob/three.js/dev/examples/js/loaders/MTLLoader.js"></script>
-<script src="https://raw.githack.com/mrdoob/three.js/dev/examples/js/loaders/OBJLoader.js"></script>
-
-<script>
-
-var renderer, scene, camera;
-var cube;
-var clock,angle = 0;
-var bugatti = 'thomas';
-var thomas;
-=======
 <div id = "info"><br>
 <button id = 'toggle' style = "height:50px;width: 8%;margin-right:0px;background-color:pink;">Start</button>
 </div>
@@ -64,15 +47,11 @@ var thomas = [];
 var count = 0;
 var turn = false;
 
->>>>>>> main
 init();
 animate();
 
 function init () {
-<<<<<<< HEAD
-=======
 	
->>>>>>> main
 	clock = new THREE.Clock()
 	renderer = new THREE.WebGLRenderer();
 	document.body.appendChild (renderer.domElement);
@@ -80,15 +59,6 @@ function init () {
 	var height = window.innerHeight;
 	renderer.setSize (width, height);
 	
-<<<<<<< HEAD
-	renderer.setClearColor (0x888888);
-	
-	scene = new THREE.Scene();
-	var grid = new THREE.GridHelper(200,20, 0xaaaa00, 0x333333);
-	scene.add (grid);
-	var axes = new THREE.AxesHelper (5);
-	scene.add (axes);
-=======
 	renderer.setClearColor (0x000000);
 	
 	scene = new THREE.Scene();
@@ -96,7 +66,6 @@ function init () {
 	//scene.add (grid);
 	var axes = new THREE.AxesHelper (5);
 	//scene.add (axes);
->>>>>>> main
 	
 	camera = new THREE.PerspectiveCamera (35, width/height, 1, 10000);
 	camera.position.y = 100;
@@ -105,13 +74,6 @@ function init () {
 	
 	let controls = new THREE.OrbitControls(camera, renderer.domElement);
 	
-<<<<<<< HEAD
-	window.addEventListener('resize', onWindowResize, false);
-	///////////////////////////////////////////////////////////////
-
-	readModel (bugatti);
-		
-=======
 	var ambientLight = new THREE.AmbientLight(0xffffff);
 	scene.add(ambientLight);
 	
@@ -147,19 +109,10 @@ function init () {
 	}
 
 
->>>>>>> main
 }
 
 function animate() {
 	var dt = clock.getDelta();
-<<<<<<< HEAD
-	angle +=  dt * Math.PI / 15;
-	if(thomas !== undefined){
-		camera.position.set( 120 * Math.cos(angle+0.7) , 10 , -120 * Math.sin(angle+0.7));
-		camera.lookAt (thomas.position);
-		thomas.position.set( 80 * Math.cos(angle) , 10 , -80 * Math.sin(angle));
-		thomas.rotation.y = angle + 2* Math.PI;
-=======
 	if(turn)
 		angle +=  dt * Math.PI / 15;
 	if(thomas[0] !== undefined){
@@ -185,7 +138,6 @@ function animate() {
 		//camera.lookAt (thomas.position);
 		thomas[3].position.set( 80 * Math.cos(angle-Math.PI/2) , 10 , -80 * Math.sin(angle-Math.PI/2));
 		thomas[3].rotation.y = angle + 1* Math.PI;
->>>>>>> main
 	}
 	requestAnimationFrame(animate);
 	render();
@@ -208,10 +160,6 @@ function onWindowResize() {
 	
 }
 
-<<<<<<< HEAD
-function readModel (modelName, targetSize=40) {
-
-=======
 function makeTrack(size){
 	var points = [];
 	var theta = 0;
@@ -227,7 +175,6 @@ function makeTrack(size){
 }
 
 function readModel (modelName, targetSize=40) {
->>>>>>> main
   var onProgress = function(xhr) {
     if (xhr.lengthComputable) {
       var percentComplete = xhr.loaded / xhr.total * 100;
@@ -248,21 +195,6 @@ function readModel (modelName, targetSize=40) {
     objLoader.setPath('models/');
     objLoader.load(modelName+'.obj', function(object) {
 		
-<<<<<<< HEAD
-		thomas =  unitize (object, targetSize);
-		//theObject.add ( new THREE.BoxHelper (theObject) )
-		thomas.name = 'OBJ'
-		scene.add (thomas);
-
-		
-		thomas.setRotationFromEuler (new THREE.Euler (3.1416/2, 0, -3.1416/2, 'ZYX'))
-		thomas.rotation.x += - Math.PI/2;		
-		
-    }, onProgress, onError);
-
-  });
-
-=======
 		var car =  unitize (object, targetSize);
 		//theObject.add ( new THREE.BoxHelper (theObject) )
 		car.name = 'OBJ'
@@ -274,7 +206,6 @@ function readModel (modelName, targetSize=40) {
     }, onProgress, onError);
 
   });
->>>>>>> main
 }
 
 ////////////////////////////////////////
@@ -303,10 +234,6 @@ function unitize (object, targetSize) {
 	theObject.add (object);
 	object.scale.set (scaleSet, scaleSet, scaleSet);
 	object.position.set (-center.x*scaleSet, -center.y*scaleSet, -center.z*scaleSet);
-<<<<<<< HEAD
-	
-=======
->>>>>>> main
 	return theObject;
 			
 }
