@@ -87,8 +87,7 @@ function init () {
 	
 	window.addEventListener('resize', onWindowResize, false);
 	///////////////////////////////////////////////////////////////
-	for(var k = 0; k < 4; k++)
-		readModel ('thomas');
+	readModel ('thomas');
 		
 	makeTrack(76.5);
 	makeTrack(84.5);
@@ -118,27 +117,9 @@ function animate() {
 	if(thomas[0] !== undefined){
 		//camera.position.set( 105 * Math.cos(angle+0.7) , 10 , -105 * Math.sin(angle+0.7));
 		//camera.lookAt (thomas.position);
-		thomas[0].position.set( 80 * Math.cos(angle) , 10 , -80 * Math.sin(angle));
-		thomas[0].rotation.y = angle -Math.PI/2 ;
+		thomas[0].position.set( 80 * Math.cos(angle+Math.PI/2) , 10 , -80 * Math.sin(angle+Math.PI/2));
+		thomas[0].rotation.y = angle;
 	}	
-	if(thomas[1] !== undefined){
-		//camera.position.set( 105 * Math.cos(angle+0.7) , 10 , -105 * Math.sin(angle+0.7));
-		//camera.lookAt (thomas.position);
-		thomas[1].position.set( 80 * Math.cos(angle+Math.PI/2) , 10 , -80 * Math.sin(angle+Math.PI/2));
-		thomas[1].rotation.y = angle;
-	}	
-	if(thomas[2] !== undefined){
-		//camera.position.set( 105 * Math.cos(angle+0.7) , 10 , -105 * Math.sin(angle+0.7));
-		//camera.lookAt (thomas.position);
-		thomas[2].position.set( 80 * Math.cos(angle+Math.PI) , 10 , -80 * Math.sin(angle+Math.PI));
-		thomas[2].rotation.y = angle+Math.PI/2;
-	}
-	if(thomas[3] !== undefined){
-		//camera.position.set( 105 * Math.cos(angle+0.7) , 10 , -105 * Math.sin(angle+0.7));
-		//camera.lookAt (thomas.position);
-		thomas[3].position.set( 80 * Math.cos(angle-Math.PI/2) , 10 , -80 * Math.sin(angle-Math.PI/2));
-		thomas[3].rotation.y = angle + 1* Math.PI;
-	}
 	requestAnimationFrame(animate);
 	render();
 	
