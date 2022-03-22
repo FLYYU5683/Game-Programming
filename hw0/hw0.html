@@ -46,11 +46,13 @@ var clock,angle = 0;
 var thomas = [];
 var count = 0;
 var turn = false;
+var lines = [];
 
 init();
 animate();
 
 function init () {
+	groups = new THREE.Group();
 	
 	clock = new THREE.Clock()
 	renderer = new THREE.WebGLRenderer();
@@ -88,9 +90,10 @@ function init () {
 	window.addEventListener('resize', onWindowResize, false);
 	///////////////////////////////////////////////////////////////
 	readModel ('thomas');
-		
-	makeTrack(76.5);
-	makeTrack(84.5);
+	
+	lines.push(makeTrack(76.5));
+	lines.push(makeTrack(84.5));
+	
 	
 	for(var i = 0; i <= 100; i++){
 		var points = [];
@@ -105,8 +108,9 @@ function init () {
 		
 		var line = new THREE.Line (new THREE.BufferGeometry().setFromPoints(points),new THREE.LineBasicMaterial({color:0x696969}));
 		scene.add(line);
+		lines.push(line);
 	}
-
+	console.log(lines);
 
 }
 
@@ -120,6 +124,7 @@ function animate() {
 		thomas[0].position.set( 80 * Math.cos(angle+Math.PI/2) , 10 , -80 * Math.sin(angle+Math.PI/2));
 		thomas[0].rotation.y = angle;
 	}	
+	lines.forEach(function (b){b.material.color = new THREE.Color().setHSL (angle/2, 0.8, .4);});
 	requestAnimationFrame(animate);
 	render();
 	
@@ -151,9 +156,11 @@ function makeTrack(size){
 		points.push(point);
 	}
 	var geom = new THREE.BufferGeometry().setFromPoints(points);
-	var line = new THREE.Line (geom,new THREE.LineBasicMaterial({color:0x8B4513}))
+	var line = new THREE.Line (geom,new THREE.LineBasicMaterial({color:0xffffff}))
 	scene.add(line);
+	return line;
 }
+//8B4513
 
 function readModel (modelName, targetSize=40) {
   var onProgress = function(xhr) {
