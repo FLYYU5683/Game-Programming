@@ -27,12 +27,16 @@ var walls = [];
 var clock;
 var hitPuck,hitWall;
 var length = 150;
+var NPUFFS = 40;
 class Puck{
+	which;
+	groups;
+	puffs;
 	vel;
 	force;
 	constructor(radius,px,pz,bc){
-		this.vel = new THREE.Vector3(10,10,10);
-		var groups = new THREE.Group();
+		this.which = 0;
+		this.groups = new THREE.Group();
 		var geometry = new THREE.CylinderGeometry(radius,radius,2,64);
 		var material = new THREE.MeshPhongMaterial({
 			color: bc,
@@ -42,11 +46,25 @@ class Puck{
 		var light = new THREE.PointLight( bc,1,100 );
 		mesh.position.y = 1.01;
 		light.position.y = 10;
-		groups.add(mesh,light);
-		groups.position.set(px,0,pz);
-		scene.add(groups);
-		return groups;
-	}	
+		this.groups.add(mesh,light);
+		this.groups.position.set(px,0,pz);
+		scene.add(this.groups);
+		
+		this.puffs = [];
+		for (let i = 0; i < NPUFFS; i++) {
+			var puff = new THREE.Mesh(new THREE.SphereGeometry(3, 20, 20),
+			new THREE.MeshBasicMaterial({
+				transparent: true,
+				color: bc
+			}));
+			this.puffs.push(puff);
+			puff.position.copy (mesh);
+			scene.add(puff);		
+		}
+	}
+	whichPlus(){
+		this.which++;
+	}
 }
 
 class Wall{
@@ -98,12 +116,12 @@ function init(){
 	floor.rotation.x = -Math.PI/2;
 	scene.add(floor);
 	
-	var puckr = new Puck(R,95,0,0xff0000);
+	var puckr = new Puck(R,70,0,0xff0000);
 	var puckg = new Puck(R,10,10,0x00ff00);
-	var puckb = new Puck(R,-95,0,0x0000ff);
-	var pucky = new Puck(R,0,95,0xffff00);
+	var puckb = new Puck(R,-70,0,0x0000ff);
+	var pucky = new Puck(R,0,70,0xffff00);
 	var puckm = new Puck(R,0,0,0xff00ff);
-	var puckc = new Puck(R,0,-95,0x00ffff);
+	var puckc = new Puck(R,0,-70,0x00ffff);
 	puckGroups.push(puckr,puckg,puckb,pucky,puckm,puckc);
 	puckGroups.forEach(function (b){
 		b.vel = new THREE.Vector3(Math.clamp(Math.random()*100,1,100),0,Math.clamp(Math.random()*100,1,100));
@@ -115,46 +133,61 @@ function init(){
 	
 	var pointLight = new THREE.PointLight( 0xffffff,1,10000 );
 	pointLight.position.y = 1000;
-	pointLight.power = 3;
+	pointLight.power = 1;
 	var ambientLight = new THREE.AmbientLight( 0x202020 ); // soft white light
 	scene.add(ambientLight,pointLight);
-
+	console.log(puckGroups[0].puffs);
 }
 
 function animate(){
 	var dt = clock.getDelta();
 	puckGroups.forEach(function (b){
-		b.position.add (b.vel.clone().multiplyScalar (dt));
-		if(b.position.x > 75-5){
+		b.groups.position.add (b.vel.clone().multiplyScalar (dt));
+		if(b.groups.position.x > 75-5){
 			b.vel.x = -b.vel.x;
-			b.position.x = 75-5;
+			b.groups.position.x = 75-5;
 			hitWall.play();
 		}		
-		if(b.position.x < -75+5){
+		if(b.groups.position.x < -75+5){
 			b.vel.x = -b.vel.x;
-			b.position.x = -75+5;
+			b.groups.position.x = -75+5;
 			hitWall.play();
 		}		
-		if(b.position.z > 75-5){
+		if(b.groups.position.z > 75-5){
 			b.vel.z = -b.vel.z;
-			b.position.z = 75-5;
+			b.groups.position.z = 75-5;
 			hitWall.play();
 		}
-		if(b.position.z < -75+5){
+		if(b.groups.position.z < -75+5){
 			b.vel.z = -b.vel.z;
-			b.position.z = -75+5;
+			b.groups.position.z = -75+5;
 			hitWall.play();
 		}
-		
+		if(b.vel.x * b.vel.x + b.vel.z * b.vel.z > 2500){
+			b.puffs[b.which % NPUFFS].position.copy(b.groups.position);
+			for (let i = 0; i < NPUFFS; i++) {
+			b.puffs[(b.which+1+i)%NPUFFS].material.opacity = (i+1)/NPUFFS;
+			b.puffs[(b.which+1+i)%NPUFFS].scale.set ( (i+1)/NPUFFS,(i+1)/NPUFFS,(i+1)/NPUFFS );  
+				}
+			b.whichPlus();
+		}
+		else{
+			b.puffs[b.which % NPUFFS].position.copy(b.groups.position);
+			for (let i = 0; i < NPUFFS; i++) {
+			b.puffs[(b.which+1+i)%NPUFFS].material.opacity = 0;
+			b.puffs[(b.which+1+i)%NPUFFS].scale.set(0,0,0);
+			}
+			b.whichPlus();
+		}
 	});
 	for(var i = 0; i <= 5; i++){
 		for(var j = 0; j <= 5; j++){
 		
-			if(puckGroups[i].position.clone().distanceToSquared(puckGroups[j].position) < 100 && i != j){
+			if(puckGroups[i].groups.position.clone().distanceToSquared(puckGroups[j].groups.position) < 100 && i != j){
 				hitpuck.play();
 				var temp = new THREE.Vector3();
-				puckGroups[i].position.add(puckGroups[i].vel.clone().normalize().negate().multiplyScalar(2));//回上2幀的位置
-				puckGroups[j].position.add(puckGroups[j].vel.clone().normalize().negate().multiplyScalar(2));//(後移2個單位向量)
+				puckGroups[i].groups.position.add(puckGroups[i].vel.clone().normalize().negate().multiplyScalar(2));//回上2幀的位置
+				puckGroups[j].groups.position.add(puckGroups[j].vel.clone().normalize().negate().multiplyScalar(2));//(後移2個單位向量)
 				/*
 				//temp.copy(puckGroups[i].position);
 				puckGroups[i].vel.copy(puckGroups[j].vel);								   //速度交換m1v1+m2v2 = m1v1'+m2v2'
@@ -163,16 +196,48 @@ function animate(){
 			
 				//公式解
 				temp.copy(puckGroups[i].vel);
-				puckGroups[i].vel.copy(puckGroups[i].vel.add(puckGroups[i].vel.clone().add(puckGroups[j].vel.clone().negate()).projectOnVector(puckGroups[i].position.clone().add(puckGroups[j].position.clone().negate())).negate()));
-				puckGroups[j].vel.copy(puckGroups[j].vel.add(puckGroups[j].vel.clone().add(temp.clone().negate()).projectOnVector(puckGroups[j].position.clone().add(puckGroups[i].position.clone().negate())).negate()));
+				puckGroups[i].vel.copy(puckGroups[i].vel.sub(puckGroups[i].vel.clone().sub(puckGroups[j].vel).projectOnVector(puckGroups[i].groups.position.clone().sub(puckGroups[j].groups.position))));
+				puckGroups[j].vel.copy(puckGroups[j].vel.sub(puckGroups[j].vel.clone().sub(temp).projectOnVector(puckGroups[j].groups.position.clone().sub(puckGroups[i].groups.position))));
 				
-				puckGroups[i].position.add(puckGroups[i].vel.clone().multiplyScalar (dt));
-				puckGroups[j].position.add(puckGroups[j].vel.clone().multiplyScalar (dt));
+				puckGroups[i].groups.position.add(puckGroups[i].vel.clone().multiplyScalar (dt));
+				puckGroups[j].groups.position.add(puckGroups[j].vel.clone().multiplyScalar (dt));
 				
+				
+				if(puckGroups[i].vel.x * puckGroups[i].vel.x + puckGroups[i].vel.z * puckGroups[i].vel.z > 2500){
+					puckGroups[i].puffs[puckGroups[i].which % NPUFFS].position.copy(puckGroups[i].groups.position);
+					for (let k = 0; k < NPUFFS; k++) {
+						puckGroups[i].puffs[(puckGroups[i].which+1+k)%NPUFFS].material.opacity = (k+1)/NPUFFS;
+						puckGroups[i].puffs[(puckGroups[i].which+1+k)%NPUFFS].scale.set ( (k+1)/NPUFFS,(k+1)/NPUFFS,(k+1)/NPUFFS );  
+					}
+					puckGroups[i].whichPlus();
+				}
+				if(puckGroups[i].vel.x * puckGroups[i].vel.x + puckGroups[i].vel.z * puckGroups[i].vel.z <= 2500){
+					puckGroups[i].puffs[puckGroups[i].which % NPUFFS].position.copy(puckGroups[i].groups.position);
+					for (let k = 0; k < NPUFFS; k++) {
+						puckGroups[i].puffs[(puckGroups[i].which+1+k)%NPUFFS].material.opacity = 0;
+						puckGroups[i].puffs[(puckGroups[i].which+1+k)%NPUFFS].scale.set(0,0,0);
+					}
+					puckGroups[i].whichPlus();
+				}				
+				if(puckGroups[j].vel.x * puckGroups[j].vel.x + puckGroups[j].vel.z * puckGroups[j].vel.z > 2500){
+					puckGroups[j].puffs[puckGroups[j].which % NPUFFS].position.copy(puckGroups[j].groups.position);
+					for (let k = 0; k < NPUFFS; k++) {
+						puckGroups[j].puffs[(puckGroups[j].which+1+k)%NPUFFS].material.opacity = (k+1)/NPUFFS;
+						puckGroups[j].puffs[(puckGroups[j].which+1+k)%NPUFFS].scale.set ( (k+1)/NPUFFS,(k+1)/NPUFFS,(k+1)/NPUFFS );  
+					}
+					puckGroups[j].whichPlus();
+				}
+				if(puckGroups[j].vel.x * puckGroups[j].vel.x + puckGroups[j].vel.z * puckGroups[j].vel.z <= 2500){
+					puckGroups[j].puffs[puckGroups[j].which % NPUFFS].position.copy(puckGroups[j].groups.position);
+					for (let k = 0; k < NPUFFS; k++) {
+						puckGroups[j].puffs[(puckGroups[j].which+1+k)%NPUFFS].material.opacity = 0;
+						puckGroups[j].puffs[(puckGroups[j].which+1+k)%NPUFFS].scale.set(0,0,0);
+					}
+					puckGroups[j].whichPlus();
+				}					
 			}
 		}
 	}
-	
 	requestAnimationFrame(animate);
 	render();
 	
