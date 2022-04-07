@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html>
+<style>
+body {
+	overflow: hidden;
+	margin:0;
+	padding:0;
+}
+</style>
+<body>
+
+<audio id="hitpuck" style="display:none">
+<source src="./hitpuck.wav" type='audio/wav'>
+</audio>
+<audio id="hitwall" style="display:none">
+<source src="./hitwall.mp3" type='audio/mp3'>
+</audio>
+
+<script src="https://threejs.org/build/three.min.js"></script>
+<script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
+<script>
+(function(){Math.clamp=function(a,b,c){return Math.max(b,Math.min(c,a));}})();
+var scene, camera, renderer;
+var R = 5;
+var puckGroups = [];
+var walls = [];
+var clock;
+var hitPuck,hitWall;
+//var last 
+class Puck{
+	vel;
+	force;
+	constructor(radius,px,pz,bc){
+		//this.
+		this.vel = new THREE.Vector3(10,10,10);
+		var groups = new THREE.Group();
+		var geometry = new THREE.CylinderGeometry(radius,radius,2,64);
+		var material = new THREE.MeshPhongMaterial({
+			color: bc,
+			shininess: 200,
+		})
+		var mesh = new THREE.Mesh(geometry,material);
+		var light = new THREE.PointLight( bc,1,100 );
+		mesh.position.y = 1;
+		light.position.y = 10;
+		groups.add(mesh,light);
+		groups.position.set(px,0,pz);
+		scene.add(groups);
+		return groups;
+	}	
+}
+class Wall{
+	constructor(px,pz){
+		var geometry = new THREE.BoxGeometry(150,20,10);
+		var material = new THREE.MeshPhongMaterial({color: 0x888888,shininess: 200,transparent:true,opacity:0.5})
+		var mesh = new THREE.Mesh(geometry,material);
+		console.log(mesh);
+		
+		if(pz == 0) mesh.rotation.y = Math.PI/2;	
+		mesh.position.set(px,10,pz);
+		
+		return mesh;
+	}
+}
+init();
+animate();
+	
+function init(){
+	walls = new THREE.Group();
+	hitPuck = document.getElementById('hitpuck');
+	hitWall = document.getElementById('hitwall');
+	hitPuck.volume = 0.1;
+	hitWall.volume = 0.1;
+	clock = new THREE.Clock();
+	renderer = new THREE.WebGLRenderer({
+		antialias: true
+	});
+	renderer.setSize(window.innerWidth, window.innerHeight);
+	renderer.setClearColor(0xffffff);
+	document.body.appendChild(renderer.domElement);
+	window.addEventListener('resize', onWindowResize , false);
+	
+	
+	scene = new THREE.Scene();
+	camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 1, 10000);
+	camera.position.set(0,100,200);
+	
+	let controls = new THREE.OrbitControls(camera, renderer.domElement);
+	
+	var floor = new THREE.Mesh(new THREE.PlaneGeometry(150,150),new THREE.MeshPhongMaterial({color: 0x888888,shininess: 200,side:THREE.DoubleSide,}))
+	floor.rotation.x = -Math.PI/2;
+	scene.add(floor);
+	
+	var puckr = new Puck(R,95,0,0xff0000);
+	var puckg = new Puck(R,10,10,0x00ff00);
+	var puckb = new Puck(R,-95,0,0x0000ff);
+	var pucky = new Puck(R,0,95,0xffff00);
+	var puckp = new Puck(R,0,0,0xff00ff);
+	var puckc = new Puck(R,0,-95,0x00ffff);
+	puckGroups.push(puckr,puckg,puckb,pucky,puckp,puckc);
+	puckGroups.forEach(function (b){
+		b.vel = new THREE.Vector3(Math.clamp(Math.random()*100,1,100),0,Math.clamp(Math.random()*100,1,100));
+	});
+	walls.add(new Wall(0,-80));
+	walls.add(new Wall(0,80));
+	walls.add(new Wall(80,0));
+	walls.add(new Wall(-80,0));
+	scene.add(walls);
+	
+	var pointLight = new THREE.PointLight( 0xffffff,1,10000 );
+	pointLight.position.y = 1000;
+	pointLight.power = 3;
+	var ambientLight = new THREE.AmbientLight( 0x202020 ); // soft white light
+	scene.add(ambientLight,pointLight);
+
+}
+function animate(){
+
+	var dt = clock.getDelta();
+	puckGroups.forEach(function (b){
+		b.position.add (b.vel.clone().multiplyScalar (dt));
+		if(b.position.x > 75-2.5){
+			b.vel.x = -b.vel.x;
+			b.position.x = 75-2.5;
+			hitWall.play();
+		}		
+		if(b.position.x < -75+2.5){
+			b.vel.x = -b.vel.x;
+			b.position.x = -75+2.5;
+			hitWall.play();
+		}		
+		if(b.position.z > 75-2.5){
+			b.vel.z = -b.vel.z;
+			b.position.z = 75-2.5;
+			hitWall.play();
+		}
+		if(b.position.z < -75+2.5){
+			b.vel.z = -b.vel.z;
+			b.position.z = -75+2.5;
+			hitWall.play();
+		}		
+	});
+	for(var i = 0; i <= 5; i++){
+		for(var j = 0; j <= 5; j++){
+			var x = (puckGroups[i].position.x - puckGroups[j].position.x) * (puckGroups[i].position.x - puckGroups[j].position.x);
+			var z = (puckGroups[i].position.z - puckGroups[j].position.z) * (puckGroups[i].position.z - puckGroups[j].position.z);
+			
+			if((x + z) < 100 && i != j){
+				hitpuck.play();
+				var temp = new THREE.Vector3();
+				temp.copy(puckGroups[i].vel);
+				puckGroups[i].position.add(puckGroups[i].vel.clone().normalize().negate());//回上一幀的位置
+				puckGroups[j].position.add(puckGroups[j].vel.clone().normalize().negate());//(後移一個單位向量)
+				
+				puckGroups[i].vel.copy(puckGroups[j].vel);								   //速度交換m1v1+m2v2 = m1v1'+m2v2'
+				puckGroups[j].vel.copy(temp);											   //動量守恆
+				puckGroups[i].position.add(puckGroups[i].vel.clone().multiplyScalar (dt));
+				puckGroups[j].position.add(puckGroups[j].vel.clone().multiplyScalar (dt));
+
+			}
+		}
+	}
+	
+	requestAnimationFrame(animate);
+	render();
+	
+}
+function render(){
+	renderer.render(scene,camera);
+}
+function onWindowResize(){
+	camera.aspect = window.innerWidth/window.innerHeight;
+	camera.updateProjectionMatrix();
+	renderer.setSize(window.innerWidth,window.innerHeight);
+}
+/*
+function buildWall(){
+	for(var i =0; i < 4; i++){
+			var geometry = new THREE.BoxGeometry(150,20,10);
+			var material = new THREE.MeshPhongMaterial({color: 0x666666,shininess: 200,transparent:true,opacity:0.5})
+			var mesh = new THREE.Mesh(geometry,material);
+			scene.add(mesh);
+			switch (i){
+				case 0:
+					mesh.position.set(0,10,-80);
+					break;				
+				case 1:
+					mesh.position.set(0,10,80);
+					break;				
+				case 2:
+					mesh.rotation.y = Math.PI /2;
+					mesh.position.set(80,10,0);
+					break;				
+				case 3:
+					mesh.rotation.y = Math.PI /2;
+					mesh.position.set(-80,10,0);
+					break;
+			}
+	}
+}
+*/
+</script>
+</body>
+</html>
