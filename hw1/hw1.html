@@ -40,7 +40,7 @@ class Puck{
 		})
 		var mesh = new THREE.Mesh(geometry,material);
 		var light = new THREE.PointLight( bc,1,100 );
-		mesh.position.y = 1;
+		mesh.position.y = 1.01;
 		light.position.y = 10;
 		groups.add(mesh,light);
 		groups.position.set(px,0,pz);
@@ -83,7 +83,7 @@ function init(){
 		antialias: true
 	});
 	renderer.setSize(window.innerWidth, window.innerHeight);
-	renderer.setClearColor(0xffffff);
+	renderer.setClearColor(0xE1C4C4);
 	document.body.appendChild(renderer.domElement);
 	window.addEventListener('resize', onWindowResize , false);
 	
@@ -120,6 +120,7 @@ function init(){
 	scene.add(ambientLight,pointLight);
 
 }
+
 function animate(){
 	var dt = clock.getDelta();
 	puckGroups.forEach(function (b){
