@@ -148,20 +148,26 @@ function animate(){
 	});
 	for(var i = 0; i <= 5; i++){
 		for(var j = 0; j <= 5; j++){
-			var x = (puckGroups[i].position.x - puckGroups[j].position.x) * (puckGroups[i].position.x - puckGroups[j].position.x);
-			var z = (puckGroups[i].position.z - puckGroups[j].position.z) * (puckGroups[i].position.z - puckGroups[j].position.z);
-			
-			if((x + z) < 100 && i != j){
+		
+			if(puckGroups[i].position.clone().distanceToSquared(puckGroups[j].position) < 100 && i != j){
 				hitpuck.play();
 				var temp = new THREE.Vector3();
-				temp.copy(puckGroups[i].vel);
-				puckGroups[i].position.add(puckGroups[i].vel.clone().normalize().negate());//回上一幀的位置
-				puckGroups[j].position.add(puckGroups[j].vel.clone().normalize().negate());//(後移一個單位向量)
-				
+				puckGroups[i].position.add(puckGroups[i].vel.clone().normalize().negate().multiplyScalar(2));//回上2幀的位置
+				puckGroups[j].position.add(puckGroups[j].vel.clone().normalize().negate().multiplyScalar(2));//(後移2個單位向量)
+				/*
+				//temp.copy(puckGroups[i].position);
 				puckGroups[i].vel.copy(puckGroups[j].vel);								   //速度交換m1v1+m2v2 = m1v1'+m2v2'
 				puckGroups[j].vel.copy(temp);											   //動量守恆
+				*/
+			
+				//公式解
+				temp.copy(puckGroups[i].vel);
+				puckGroups[i].vel.copy(puckGroups[i].vel.add(puckGroups[i].vel.clone().add(puckGroups[j].vel.clone().negate()).projectOnVector(puckGroups[i].position.clone().add(puckGroups[j].position.clone().negate())).negate()));
+				puckGroups[j].vel.copy(puckGroups[j].vel.add(puckGroups[j].vel.clone().add(temp.clone().negate()).projectOnVector(puckGroups[j].position.clone().add(puckGroups[i].position.clone().negate())).negate()));
+				
 				puckGroups[i].position.add(puckGroups[i].vel.clone().multiplyScalar (dt));
 				puckGroups[j].position.add(puckGroups[j].vel.clone().multiplyScalar (dt));
+				
 			}
 		}
 	}
@@ -178,32 +184,6 @@ function onWindowResize(){
 	camera.updateProjectionMatrix();
 	renderer.setSize(window.innerWidth,window.innerHeight);
 }
-/*
-function buildWall(){
-	for(var i =0; i < 4; i++){
-			var geometry = new THREE.BoxGeometry(150,20,10);
-			var material = new THREE.MeshPhongMaterial({color: 0x666666,shininess: 200,transparent:true,opacity:0.5})
-			var mesh = new THREE.Mesh(geometry,material);
-			scene.add(mesh);
-			switch (i){
-				case 0:
-					mesh.position.set(0,10,-80);
-					break;				
-				case 1:
-					mesh.position.set(0,10,80);
-					break;				
-				case 2:
-					mesh.rotation.y = Math.PI /2;
-					mesh.position.set(80,10,0);
-					break;				
-				case 3:
-					mesh.rotation.y = Math.PI /2;
-					mesh.position.set(-80,10,0);
-					break;
-			}
-	}
-}
-*/
 </script>
 </body>
 </html>
