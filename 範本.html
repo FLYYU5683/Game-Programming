@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<style>
+</style>
+<script>
+
+var scene, camera, renderer;
+
+init();
+animate();
+	
+function init(){
+	renderer = new THREE.WebGLRenderer({
+		antialias: true
+	});
+	renderer.setSize(window.innerWidth, window.innerHeight);
+	renderer.setClearColor(0x3D7878);
+	document.body.appendChild(renderer.domElement);
+	window.addEventListener('resize', onWindowResize , false);
+	
+	scene = new THREE.Scene();
+	camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 1, 10000);
+	camera.position.z = 130;
+	
+	
+	
+}
+function animate(){
+	requestAnimationFrame(animate);
+	render();
+}
+function render(){
+	renderer.render(scene,camera);
+}
+function onWindowResize(){
+	camera.aspect = window.innerWidth/window.innerHeight;
+	camera.updateProjectionMatrix();
+	renderer.setSize(window.innerWidth,window.innerHeight);
+}
+</script>
+<body>
+</body>
+</html>
