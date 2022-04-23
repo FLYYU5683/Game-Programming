@@ -185,9 +185,11 @@ function init(){
 	hitPuck.volume = 0.1;
 	hitWall.volume = 0.1;
 	clock = new THREE.Clock();
+	
 	renderer = new THREE.WebGLRenderer({
 		antialias: true
 	});
+	
 	renderer.setSize(window.innerWidth, window.innerHeight);
 	renderer.setClearColor(0xE1C4C4);
 	document.body.appendChild(renderer.domElement);

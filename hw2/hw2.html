@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html>
+<body>
+<style>
+body {
+	overflow: hidden;
+	margin:0;
+	padding:0;
+}
+#info {
+	position: absolute;
+	top: 20px;
+	width: 100%;
+	text-align: center;
+	color: #ffff00;
+}
+</style>
+<div id = "info">
+<button id = 'toggle' style = "width: 5%;margin-right:25px;background-color:pink;">Switch</button>
+</div>
+<script src="https://threejs.org/build/three.min.js"></script>
+<script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
+<script
+  src="https://code.jquery.com/jquery-3.6.0.min.js"
+  integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4="
+  crossorigin="anonymous"></script>
+<script>
+
+$("#toggle").click(function(){
+	toggle = !toggle;
+})
+
+var scene, camera, tPCamera, renderer;
+var head,Rleg,Lleg,Rhand,Lhand,body;
+var WW = 4, HH = 12;
+var clock = new THREE.Clock(), T = 1;
+var angle = 0,theta = 0;
+var sign = 1,count = 0;
+var toggle = true;
+var ts = clock.getElapsedTime();
+
+var pose1 = {
+	lThigh: -Math.PI/6,
+  rThigh: Math.PI/6
+}
+var pose2 = {
+	lThigh: Math.PI/6,
+  rThigh: -Math.PI/6
+}
+var keys = [
+  [0, pose1],
+  [0.5, pose2],
+  [1, pose1]
+];
+
+
+function keyframe(t) {
+  var s = ((t - ts) % T) / T;
+
+  for (var i = 1; i < keys.length; i++) {
+    if (keys[i][0] > s) break;
+  }
+  // take i-1
+  var ii = i - 1;
+  var a = (s - keys[ii][0]) / (keys[ii + 1][0] - keys[ii][0]);
+  
+  intKey = [keys[ii][1].lThigh * (1 - a) + keys[ii + 1][1].lThigh * a,
+            keys[ii][1].rThigh * (1 - a) + keys[ii + 1][1].rThigh * a];
+	return intKey;
+}
+
+init();
+animate();
+	
+function init(){
+	renderer = new THREE.WebGLRenderer({
+		antialias: true
+	});
+	
+	renderer.setSize(window.innerWidth, window.innerHeight);
+	renderer.setClearColor(0x888888);
+	document.body.appendChild(renderer.domElement);
+	window.addEventListener('resize', onWindowResize , false);
+	
+	scene = new THREE.Scene();
+	camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 1, 10000);
+	camera.position.z = 130;
+	camera.position.y = 50;
+	
+	tPCamera = new THREE.PerspectiveCamera(50,window.innerWidth/window.innerHeight,1,10000);
+	
+	var gridXZ = new THREE.GridHelper(200, 20, 'red', 'white');
+	scene.add(gridXZ);
+	
+	let controls = new THREE.OrbitControls(camera, renderer.domElement);
+		
+	
+	body = buildBody(1.5*HH);
+	head = buildHead(0.5*HH+WW);
+	Lhand = buildLimbs(1.5*WW,0);
+	Rhand = buildLimbs(-1.5*WW,0);
+	Lleg = buildLimbs(0.5*WW,-HH);
+	Rleg = buildLimbs(-0.5*WW,-HH);
+
+	body.add(head,Lhand,Rhand,Lleg,Rleg);
+	scene.add(body);
+	
+	
+	
+}
+
+function buildHead(y){
+	let head = new THREE.Group();
+	let geometry = new THREE.BoxGeometry(2*WW,2*WW,2*WW);
+	let material = new THREE.MeshNormalMaterial({transparent:true,opacity:0.5});
+	let mesh = new THREE.Mesh(geometry,material);
+	head.add(mesh);
+	head.position.y = y;
+	
+	return head;
+}
+
+function buildLimbs(x,y){
+	let limbs = new THREE.Group();
+	let geometry = new THREE.BoxGeometry(WW,HH,WW);
+	let material = new THREE.MeshNormalMaterial({transparent:true,opacity:0.5});
+	let mesh = new THREE.Mesh(geometry,material);
+	mesh.position.y = -0.5*HH;
+	limbs.add(mesh);
+	limbs.position.set(x,y + 0.5*HH,0);
+	
+	return limbs;
+}
+function buildBody(y){
+	let body = new THREE.Group();
+	let geometry = new THREE.BoxGeometry(2*WW,HH,WW);
+	let material = new THREE.MeshNormalMaterial({transparent:true,opacity:0.5});
+	let mesh = new THREE.Mesh(geometry,material);
+	body.add(mesh);
+	body.position.y = y;
+	
+	return body;
+}
+
+function animate(){
+	var dt = clock.getDelta();
+
+	angle += sign * 30 * 2 * Math.PI /60 * dt;
+	
+	if(Math.floor(theta / Math.PI) == 4)
+		theta = 0;
+		
+	if(Math.floor(theta / Math.PI) == 1 || Math.floor(theta / Math.PI) == 2){
+		var R = 20;
+	}
+	else if (Math.floor(theta / Math.PI) == 0 || Math.floor(theta / Math.PI) == 3){
+		var R = 40;
+	} 
+
+	let omega = HH/R/T;  
+	theta += omega*dt;
+	
+	if(R == 40){
+		body.position.set (R*Math.cos(theta), 1.5*HH, -R*Math.sin(theta));
+		body.rotation.y = Math.PI + theta;
+	}
+	else if(R == 20){
+		body.position.set (- R * Math.cos(theta) - 40  - 20 , 1.5*HH, - R * Math.sin(theta));
+		body.rotation.y = -(Math.PI + theta);
+	}
+	
+	/*
+	if(angle >= Math.PI / 4 || angle <= -Math.PI/6)
+		sign *= -1;
+	Lleg.rotation.x = -angle;
+	Rleg.rotation.x = angle;
+	Rhand.rotation.x = -angle;
+	Lhand.rotation.x = angle;
+	*/
+	
+	tPCamera.position.copy(body.localToWorld(new THREE.Vector3(0,50,-50)));
+	tPCamera.lookAt(body.localToWorld(new THREE.Vector3(0,0,10)));
+	
+	let intKey = keyframe(clock.getElapsedTime());
+	
+	Lleg.rotation.x = intKey[1];
+	Rleg.rotation.x = intKey[0];
+	Rhand.rotation.x = intKey[1];
+	Lhand.rotation.x = intKey[0];
+	
+	requestAnimationFrame(animate);
+	render();
+}
+function render(){
+	if(toggle){
+		renderer.clear();
+		renderer.setViewport(0, 0,window.innerWidth,window.innerHeight);
+		renderer.render(scene,camera);
+	}
+	else{
+		renderer.clear();
+		renderer.setViewport(0, 0,window.innerWidth,window.innerHeight);
+		renderer.render(scene,tPCamera);
+	}
+
+}
+function onWindowResize(){
+	camera.aspect = window.innerWidth/window.innerHeight;
+	camera.updateProjectionMatrix();
+	renderer.setSize(window.innerWidth,window.innerHeight);
+}
+
+</script>
+</body>
+</html>
