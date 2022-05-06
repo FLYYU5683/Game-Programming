@@ -169,14 +169,6 @@ function animate(){
 		body.rotation.y = -(Math.PI + theta);
 	}
 	
-	/*
-	if(angle >= Math.PI / 4 || angle <= -Math.PI/6)
-		sign *= -1;
-	Lleg.rotation.x = -angle;
-	Rleg.rotation.x = angle;
-	Rhand.rotation.x = -angle;
-	Lhand.rotation.x = angle;
-	*/
 	
 	tPCamera.position.copy(body.localToWorld(new THREE.Vector3(0,50,-50)));
 	tPCamera.lookAt(body.localToWorld(new THREE.Vector3(0,0,10)));
