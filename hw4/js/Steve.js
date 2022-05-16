@@ -130,7 +130,6 @@ class Steve {
 		this.nbhd = []; 
 		if(this.Check_Intersect(agents.Rect,this.body,12)){
 			this.addNbr(agents.group)
-			console.log("true")
 		}
 	}
 	Check_Intersect(Rect, C, Rad) {
