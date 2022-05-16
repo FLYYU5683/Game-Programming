@@ -1,4 +1,4 @@
-import * as THREE from 'http://cdn.skypack.dev/three@0.136';
+import * as THREE from 'https://cdn.skypack.dev/three@0.136';
 import {scene,texture} from './Init.js';
 var T = 2;
 var clock = new THREE.Clock();
