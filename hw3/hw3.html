@@ -34,419 +34,84 @@ $("#toggle").click(function(){
 	toggle = !toggle;
 });
 
-(function() {   Math.clamp = function(val,min,max){     return Math.min(Math.max(val,min),max);       }})();
+(function() {
+  Math.clamp = function(val,min,max){
+    return Math.min(Math.max(val,min),max);
+    
+  }})();
 
-var scene, camera, renderer, gyroCamera, gyro;
+var scene, camera, gyroCamera, renderer;
+var head,Rleg,Lleg,Rhand,Lhand,body;
+var WW = 4, HH = 12;
 var clock = new THREE.Clock(), T = 2;
+var angle = 0,theta = 0;
 var toggle = true;
 var ts = clock.getElapsedTime();
+var gyro;
 var keyboard = new KeyboardState();
 var texture;
-var steve;
-var agent;
 
-var raycaster;
-var mouse = new THREE.Vector2();
-var pickables = [];
+var vel = new THREE.Vector3(0,0,0)
+var force = new THREE.Vector3(0,0,0);
+var pos = new THREE.Vector3(0,0,0);
+var power = 0.1;
 
-class Steve {
-	constructor(WW,HH){
-		this.WW = WW;
-		this.HH = HH;
-		this.vel = new THREE.Vector3(0.0001,0,0)
-		this.force = new THREE.Vector3(0,0,0);
-		this.pos = new THREE.Vector3(-50,22,0);
-		this.power = 0.1; 
-		this.angle = 0;
-		
-		this.pose = {
-			lThigh: -Math.PI * this.vel.length() / 120,
-			rThigh: Math.PI * this.vel.length() / 120
-		}
-		this.pose1 = {
-			lThigh: Math.PI * this.vel.length() / 120,
-			rThigh: -Math.PI * this.vel.length() / 120
-		}
-		
-		this.keys = [[0,this.pose],[0.5,this.pose1],[1,this.pose]]
-		
-		this.MAXSPEED = 40;
-		this.ARRIVAL_R = 50;
-	}
-	buildSteve(){
-		this.body = this.buildBody(1.5*this.HH);
-		this.head = this.buildHead(0.5*this.HH+this.WW);
-		
-		this.Lhand = this.buildArms(1.5*this.WW,0);
-		this.Rhand = this.buildArms(-1.5*this.WW,0);
-		
-		this.Lleg = this.buildLegs(0.5*this.WW,-this.HH);
-		this.Rleg = this.buildLegs(-0.5*this.WW,-this.HH);
-
-		this.body.add(this.head,this.Lhand,this.Rhand,this.Lleg,this.Rleg);
-		scene.add(this.body);
-	}
-	update(dt,target) {
-	
-		this.setTarget(target)
-		this.accumulateForce();
-		this.vel.add(this.force.clone().multiplyScalar(dt));
-		this.body.lookAt(this.body.position.clone().add(this.vel));
-		if (this.target) {
-			let diff = this.target.clone().sub(this.pos)
-			let dst = diff.length();
-			if (dst < this.ARRIVAL_R) {
-				this.vel.setLength(dst)
-			}
-		}
-    
-		this.pos.add(this.vel.clone().multiplyScalar(dt))
-		this.body.position.copy(this.pos)
-
-
-		this.pose.lThigh = -Math.PI * this.vel.length() / 120;
-		this.pose.rThigh = Math.PI * this.vel.length() / 120;
-		this.pose1.lThigh = Math.PI * this.vel.length() / 120;
-		this.pose1.rThigh = -Math.PI * this.vel.length() / 120;
-		
-		let intKey = this.keyframe(clock.getElapsedTime());
-		this.Lleg.rotation.x = intKey[1];
-		this.Rleg.rotation.x = intKey[0];
-		this.Rhand.rotation.x = intKey[1];
-		this.Lhand.rotation.x = intKey[0];
-		
-	}
-	setTarget(target) {
-		console.log(target.position)
-		if (this.target !== undefined)
-			this.target.copy(target.localToWorld(new THREE.Vector3(-10,18,5)));
-		else
-			this.target = new THREE.Vector3(target.position.x,target.position.y,target.position.z);
-	}
-	targetInducedForce(targetPos) { 
-		return targetPos.clone().sub(this.pos).normalize().multiplyScalar(this.MAXSPEED).sub(this.vel)
-	}
-	accumulateForce() {
-		if (this.target)
-			this.force.copy(this.targetInducedForce(this.target));
-	}
-	keyframe(t) {
-		var s = ((t - ts) % T) / T;
-
-		for (var i = 1; i < this.keys.length; i++) {
-		if (this.keys[i][0] > s) break;
-		}
-		// take i-1
-		var ii = i - 1;
-		var a = (s - this.keys[ii][0]) / (this.keys[ii + 1][0] - this.keys[ii][0]);
-		  
-		let intKey = [this.keys[ii][1].lThigh * (1 - a) + this.keys[ii + 1][1].lThigh * a,
-				  this.keys[ii][1].rThigh * (1 - a) + this.keys[ii + 1][1].rThigh * a];
-		return intKey;
-	}
-	buildHead(y){
-		var head = new THREE.Group();
-		var geometry = new THREE.BufferGeometry();	
-		var vertices = [];
-		var indices = [];
-		var uvs = [];
-		
-		
-		const ww = 1;
-		const hh = 3;
-		const UU = 14*ww;
-		const VV = hh + 5*ww;
-		const WW = this.WW*2, HH = this.WW*2,DD = this.WW*2;
-		
-		var a = {u: 2*ww, v: hh+5*ww};
-		var b = {u: 4*ww, v: hh+5*ww};
-		var c = {u: 6*ww, v: hh+5*ww};
-		var d = {u: 0, v: hh+3*ww};
-		var e = {u: 2*ww, v: hh+3*ww};
-		var f = {u: 4*ww, v: hh+3*ww};
-		var g = {u: 6*ww, v: hh+3*ww};
-		var h = {u: 8*ww, v: hh+3*ww};
-		var i = {u: 0, v: hh+ww};
-		var j = {u: 2*ww, v: hh+ww};
-		var k = {u: 4*ww, v: hh+ww};
-		var l = {u: 6*ww, v: hh+ww};
-		var m = {u: 8*ww, v: hh+ww};
-		
-		vertices.push(WW/2,HH/2,DD/2, WW/2,-HH/2,DD/2, WW/2,-HH/2,-DD/2, WW/2,HH/2,-DD/2 );
-		indices.push(0,1,2, 0,2,3);
-		uvs.push (f.u/UU,f.v/VV, k.u/UU,k.v/VV, l.u/UU,l.v/VV, g.u/UU,g.v/VV);
-		
-		vertices.push(WW/2,HH/2,-DD/2, WW/2,-HH/2,-DD/2, -WW/2,-HH/2,-DD/2, -WW/2,HH/2,-DD/2 );
-		indices.push(4,5,6, 4,6,7);
-		uvs.push (g.u/UU,g.v/VV, l.u/UU,l.v/VV, m.u/UU,m.v/VV, h.u/UU,h.v/VV);
-		
-		vertices.push(-WW/2,HH/2,-DD/2, -WW/2,-HH/2,-DD/2, -WW/2,-HH/2,DD/2, -WW/2,HH/2,DD/2 );
-		indices.push(8,9,10, 8,10,11);
-		uvs.push (d.u/UU,d.v/VV, i.u/UU,i.v/VV, j.u/UU,j.v/VV, e.u/UU,e.v/VV);
-		
-		vertices.push(-WW/2,HH/2,DD/2, -WW/2,-HH/2,DD/2, WW/2,-HH/2,DD/2, WW/2,HH/2,DD/2 );
-		indices.push(12,13,14, 12,14,15);
-		uvs.push (e.u/UU,e.v/VV, j.u/UU,j.v/VV, k.u/UU,k.v/VV, f.u/UU,f.v/VV);
-		
-		vertices.push(-WW/2,HH/2,DD/2, WW/2,HH/2,DD/2, WW/2,HH/2,-DD/2, -WW/2,HH/2,-DD/2 );
-		indices.push(16,17,18, 16,18,19);
-		uvs.push (a.u/UU,a.v/VV, e.u/UU,e.v/VV, f.u/UU,f.v/VV, b.u/UU,b.v/VV);	
-		
-		vertices.push(WW/2,-HH/2,DD/2, -WW/2,-HH/2,DD/2, -WW/2,-HH/2,-DD/2, WW/2,-HH/2,-DD/2 );
-		indices.push(20,21,22, 20,22,23);
-		uvs.push (b.u/UU,b.v/VV, f.u/UU,f.v/VV, g.u/UU,g.v/VV, c.u/UU,c.v/VV);
-		
-		geometry.setIndex(indices);  
-		geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-		geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));	
-		var material = new THREE.MeshBasicMaterial({map: texture, side:THREE.DoubleSide});
-		var mesh = new THREE.Mesh(geometry,material);
-		head.add(mesh);
-		head.position.y = y;
-		
-		return head;
-	}
-	buildArms(x,y){
-		let Arms = new THREE.Group();
-		var geometry = new THREE.BufferGeometry();	
-		var vertices = [];
-		var indices = [];
-		var uvs = [];
-		
-		const ww = 1;
-		const hh = 3;
-		const UU = 14*ww;
-		const VV = hh + 5*ww;
-		const WW = this.WW, HH = this.HH,DD = this.WW;
-			
-		var a = {u: 11*ww, v: hh+ww};
-		var b = {u: 12*ww, v: hh+ww};
-		var c = {u: 13*ww, v: hh+ww};
-		var d = {u: 10*ww, v: hh};
-		var e = {u: 11*ww, v: hh};
-		var f = {u: 12*ww, v: hh};
-		var g = {u: 13*ww, v: hh};
-		var h = {u: 14*ww, v: hh};
-		var i = {u: 10*ww, v: 0};
-		var j = {u: 11*ww, v: 0};
-		var k = {u: 12*ww, v: 0};
-		var l = {u: 13*ww, v: 0};
-		var m = {u: 14*ww, v: 0};
-
-		
-		vertices.push(WW/2,HH/2,DD/2, WW/2,-HH/2,DD/2, WW/2,-HH/2,-DD/2, WW/2,HH/2,-DD/2 );
-		indices.push(0,1,2, 0,2,3);
-		uvs.push (f.u/UU,f.v/VV, k.u/UU,k.v/VV, l.u/UU,l.v/VV, g.u/UU,g.v/VV);
-
-		vertices.push(WW/2,HH/2,-DD/2, WW/2,-HH/2,-DD/2, -WW/2,-HH/2,-DD/2, -WW/2,HH/2,-DD/2 );
-		indices.push(4,5,6, 4,6,7);
-		uvs.push (g.u/UU,g.v/VV, l.u/UU,l.v/VV, m.u/UU,m.v/VV, h.u/UU,h.v/VV);
-		
-		vertices.push(-WW/2,HH/2,-DD/2, -WW/2,-HH/2,-DD/2, -WW/2,-HH/2,DD/2, -WW/2,HH/2,DD/2 );
-		indices.push(8,9,10, 8,10,11);
-		uvs.push (d.u/UU,d.v/VV, i.u/UU,i.v/VV, j.u/UU,j.v/VV, e.u/UU,e.v/VV);
-		
-		vertices.push(-WW/2,HH/2,DD/2, -WW/2,-HH/2,DD/2, WW/2,-HH/2,DD/2, WW/2,HH/2,DD/2 );
-		indices.push(12,13,14, 12,14,15);
-		uvs.push (e.u/UU,e.v/VV, j.u/UU,j.v/VV, k.u/UU,k.v/VV, f.u/UU,f.v/VV);
-		vertices.push(-WW/2,HH/2,DD/2, WW/2,HH/2,DD/2, WW/2,HH/2,-DD/2, -WW/2,HH/2,-DD/2 );
-		indices.push(16,17,18, 16,18,19);
-		uvs.push (a.u/UU,a.v/VV, e.u/UU,e.v/VV, f.u/UU,f.v/VV, b.u/UU,b.v/VV);	
-		
-		vertices.push(WW/2,-HH/2,DD/2, -WW/2,-HH/2,DD/2, -WW/2,-HH/2,-DD/2, WW/2,-HH/2,-DD/2 );
-		indices.push(20,21,22, 20,22,23);
-		uvs.push (b.u/UU,b.v/VV, f.u/UU,f.v/VV, g.u/UU,g.v/VV, c.u/UU,c.v/VV);
-
-		geometry.setIndex(indices);  
-		geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-		geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));	
-		var material = new THREE.MeshBasicMaterial({map: texture, side:THREE.DoubleSide});
-		var mesh = new THREE.Mesh(geometry,material);
-		mesh.position.y = -0.5*HH;
-		Arms.add(mesh);
-		Arms.position.set(x,y + 0.5*HH,0);
-		
-		return Arms;
-	}
-	buildLegs(x,y){
-		let Legs = new THREE.Group();
-			var geometry = new THREE.BufferGeometry();	
-		var vertices = [];
-		var indices = [];
-		var uvs = [];
-		
-		
-		
-		const ww = 1;
-		const hh = 3;
-		const UU = 14*ww;
-		const VV = hh + 5*ww;
-		const WW = this.WW, HH = this.HH,DD = this.WW;
-			
-		var a = {u: 1*ww, v: hh+ww};
-		var b = {u: 2*ww, v: hh+ww};
-		var c = {u: 3*ww, v: hh+ww};
-		var d = {u: 0*ww, v: hh};
-		var e = {u: 1*ww, v: hh};
-		var f = {u: 2*ww, v: hh};
-		var g = {u: 3*ww, v: hh};
-		var h = {u: 4*ww, v: hh};
-		var i = {u: 0*ww, v: 0};
-		var j = {u: 1*ww, v: 0};
-		var k = {u: 2*ww, v: 0};
-		var l = {u: 3*ww, v: 0};
-		var m = {u: 4*ww, v: 0};
-		
-		vertices.push(WW/2,HH/2,DD/2, WW/2,-HH/2,DD/2, WW/2,-HH/2,-DD/2, WW/2,HH/2,-DD/2 );
-		indices.push(0,1,2, 0,2,3);
-		uvs.push (f.u/UU,f.v/VV, k.u/UU,k.v/VV, l.u/UU,l.v/VV, g.u/UU,g.v/VV);
-		
-		vertices.push(WW/2,HH/2,-DD/2, WW/2,-HH/2,-DD/2, -WW/2,-HH/2,-DD/2, -WW/2,HH/2,-DD/2 );
-		indices.push(4,5,6, 4,6,7);
-		uvs.push (g.u/UU,g.v/VV, l.u/UU,l.v/VV, m.u/UU,m.v/VV, h.u/UU,h.v/VV);
-		
-		vertices.push(-WW/2,HH/2,-DD/2, -WW/2,-HH/2,-DD/2, -WW/2,-HH/2,DD/2, -WW/2,HH/2,DD/2 );
-		indices.push(8,9,10, 8,10,11);
-		uvs.push (d.u/UU,d.v/VV, i.u/UU,i.v/VV, j.u/UU,j.v/VV, e.u/UU,e.v/VV);
-		
-		vertices.push(-WW/2,HH/2,DD/2, -WW/2,-HH/2,DD/2, WW/2,-HH/2,DD/2, WW/2,HH/2,DD/2 );
-		indices.push(12,13,14, 12,14,15);
-		uvs.push (e.u/UU,e.v/VV, j.u/UU,j.v/VV, k.u/UU,k.v/VV, f.u/UU,f.v/VV);
-		
-		vertices.push(-WW/2,HH/2,DD/2, WW/2,HH/2,DD/2, WW/2,HH/2,-DD/2, -WW/2,HH/2,-DD/2 );
-		indices.push(16,17,18, 16,18,19);
-		uvs.push (a.u/UU,a.v/VV, e.u/UU,e.v/VV, f.u/UU,f.v/VV, b.u/UU,b.v/VV);	
-		
-		vertices.push(WW/2,-HH/2,DD/2, -WW/2,-HH/2,DD/2, -WW/2,-HH/2,-DD/2, WW/2,-HH/2,-DD/2 );
-		indices.push(20,21,22, 20,22,23);
-		uvs.push (b.u/UU,b.v/VV, f.u/UU,f.v/VV, g.u/UU,g.v/VV, c.u/UU,c.v/VV);	
-		
-		geometry.setIndex(indices);  
-		geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-		geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));	
-		var material = new THREE.MeshBasicMaterial({map: texture, side:THREE.DoubleSide});
-		var mesh = new THREE.Mesh(geometry,material);
-		mesh.position.y = -0.5*HH;
-		Legs.add(mesh);
-		Legs.position.set(x,y + 0.5*HH,0);
-		
-		return Legs;
-	}
-	buildBody(y){
-		var body = new THREE.Group();
-		
-		var geometry = new THREE.BufferGeometry();	
-		
-		var vertices = [];
-		var indices = [];
-		var uvs = [];
-		
-		
-		const ww = 1;
-		const hh = 3;
-		const UU = 14*ww;
-		const VV = hh + 5*ww;
-		const WW = this.WW*2, HH = this.HH,DD = this.WW;
-		
-		var a = {u: 5*ww, v: hh+ww};
-		var b = {u: 7*ww, v: hh+ww};
-		var c = {u: 9*ww, v: hh+ww};
-		var d = {u: 4*ww, v: hh};
-		var e = {u: 5*ww, v: hh};
-		var f = {u: 7*ww, v: hh};
-		var g = {u: 8*ww, v: hh};
-		var h = {u: 10*ww, v: hh};
-		var i = {u: 4*ww, v: 0};
-		var j = {u: 5*ww, v: 0};
-		var k = {u: 7*ww, v: 0};
-		var l = {u: 8*ww, v: 0};
-		var m = {u: 10*ww, v: 0};
-		var x = {u: 9*ww, v: hh};
-		
-		
-		vertices.push(WW/2,HH/2,DD/2, WW/2,-HH/2,DD/2, WW/2,-HH/2,-DD/2, WW/2,HH/2,-DD/2 );
-		indices.push(0,1,2, 0,2,3);
-		uvs.push (f.u/UU,f.v/VV, k.u/UU,k.v/VV, l.u/UU,l.v/VV, g.u/UU,g.v/VV);
-
-		
-		vertices.push(WW/2,HH/2,-DD/2, WW/2,-HH/2,-DD/2, -WW/2,-HH/2,-DD/2, -WW/2,HH/2,-DD/2 );
-		indices.push(4,5,6, 4,6,7);
-		uvs.push (g.u/UU,g.v/VV, l.u/UU,l.v/VV, m.u/UU,m.v/VV, h.u/UU,h.v/VV);
-		
-		vertices.push(-WW/2,HH/2,-DD/2, -WW/2,-HH/2,-DD/2, -WW/2,-HH/2,DD/2, -WW/2,HH/2,DD/2 );
-		indices.push(8,9,10, 8,10,11);
-		uvs.push (d.u/UU,d.v/VV, i.u/UU,i.v/VV, j.u/UU,j.v/VV, e.u/UU,e.v/VV);
-		
-		vertices.push(-WW/2,HH/2,DD/2, -WW/2,-HH/2,DD/2, WW/2,-HH/2,DD/2, WW/2,HH/2,DD/2 );
-		indices.push(12,13,14, 12,14,15);
-		uvs.push (e.u/UU,e.v/VV, j.u/UU,j.v/VV, k.u/UU,k.v/VV, f.u/UU,f.v/VV);
-		
-		vertices.push(-WW/2,HH/2,DD/2, WW/2,HH/2,DD/2, WW/2,HH/2,-DD/2, -WW/2,HH/2,-DD/2 );
-		indices.push(16,17,18, 16,18,19);
-		uvs.push (a.u/UU,a.v/VV, e.u/UU,e.v/VV, f.u/UU,f.v/VV, b.u/UU,b.v/VV);	
-		
-		vertices.push(WW/2,-HH/2,DD/2, -WW/2,-HH/2,DD/2, -WW/2,-HH/2,-DD/2, WW/2,-HH/2,-DD/2 );
-		indices.push(20,21,22, 20,22,23);
-		uvs.push (b.u/UU,b.v/VV, f.u/UU,f.v/VV, x.u/UU,x.v/VV, c.u/UU,c.v/VV);
-		
-		
-		
-		geometry.setIndex(indices);  
-		geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-		geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));	
-		var material = new THREE.MeshBasicMaterial({map: texture, side:THREE.DoubleSide});
-		var mesh = new THREE.Mesh(geometry,material);
-		body.add(mesh);
-		body.position.y = y;
-		
-		return body;
-	}
-	
+var pose1 = {
+	lThigh: -Math.PI/9,
+  rThigh: Math.PI/9
 }
-class Agent {
-	constructor(pos, mesh) {
-  
-		this.pos = pos.clone();
-		this.vel = new THREE.Vector3();
-		this.force = new THREE.Vector3();
-		this.target = null;
-		this.size = 3;
-		this.mesh = mesh;
-		scene.add (mesh);
-		
-		this.MAXSPEED = 50;
-		this.ARRIVAL_R = 10;
-		this.nbhd = [];
-	}
-	update(dt) {
-		this.accumulateForce();
-		this.vel.add(this.force.clone().multiplyScalar(dt));
-    
-		if (this.target) {
-			let diff = this.target.clone().sub(this.pos)
-			let dst = diff.length();
-			if (dst < this.ARRIVAL_R) {
-				this.vel.setLength(dst)
-			}
-		}
-    
-		this.pos.add(this.vel.clone().multiplyScalar(dt))
-		this.mesh.position.copy(this.pos)
-	}
-	setTarget(x,y,z) {
-		if (this.target !== null)
-			this.target.set(x,y,z);
-		else
-			this.target = new THREE.Vector3(x,y,z);
-	}
-	targetInducedForce(targetPos) { 
-		return targetPos.clone().sub(this.pos).normalize().multiplyScalar(this.MAXSPEED).sub(this.vel)
-	}
-	accumulateForce() {
-		if (this.target)
-			this.force.copy(this.targetInducedForce(this.target));
-	}
+var pose2 = {
+	lThigh: Math.PI/9,
+  rThigh: -Math.PI/9
+}
+var pose3 = {
+	lThigh:-Math.PI/6,
+  rThigh: Math.PI/6
+}
+var pose4 = {
+	lThigh: Math.PI/6,
+  rThigh: -Math.PI/6
+}
+var pose5 = {
+	lThigh: -Math.PI/4,
+  rThigh: Math.PI/4
+}
+var pose6 = {
+	lThigh: Math.PI/4,
+  rThigh: -Math.PI/4
+}
+var pose7 = {
+	lThigh: 0,
+	rThigh: 0
+}
+var keys = [[  
+			[0, pose1],
+			[0.5, pose2],
+			[1, pose1]],
+			[[0, pose3],
+			[0.5, pose4],
+			[1, pose3]],
+			[[0, pose5],
+			[0.5, pose6],
+			[1, pose5]],
+			[[0,pose7],
+			[0.5,pose7],
+			[1,pose7]]
+			];
 
+function keyframe(t,k) {
+  var s = ((t - ts) % T) / T;
+
+  for (var i = 1; i < keys.length; i++) {
+    if (keys[k][i][0] > s) break;
+  }
+  // take i-1
+  var ii = i - 1;
+  var a = (s - keys[k][ii][0]) / (keys[k][ii + 1][0] - keys[k][ii][0]);
+  
+  intKey = [keys[k][ii][1].lThigh * (1 - a) + keys[k][ii + 1][1].lThigh * a,
+            keys[k][ii][1].rThigh * (1 - a) + keys[k][ii + 1][1].rThigh * a];
+	return intKey;
 }
 
 init();
@@ -480,47 +145,359 @@ function init(){
 	loader.setCrossOrigin('');
 	texture = loader.load ('https://i.imgur.com/dSQ0A9W.png');
 	
-	steve = new Steve(4,12);
-	steve.buildSteve();
+		
+	body = buildBody(1.5*HH);
+	head = buildHead(0.5*HH+WW);
+	
+	Lhand = buildArms(1.5*WW,0);
+	Rhand = buildArms(-1.5*WW,0);
+	
+	Lleg = buildLegs(0.5*WW,-HH);
+	Rleg = buildLegs(-0.5*WW,-HH);
+
+	body.add(head,Lhand,Rhand,Lleg,Rleg);
+	scene.add(body);
+	
 	gyro = new THREE.Gyroscope();
-	steve.body.add(gyro)
+	body.add (gyro)
 	gyro.add (gyroCamera)
 	
-	var geometry = new THREE.BoxGeometry(2,2,2);
-	var material = new THREE.MeshBasicMaterial({color:'red'});
-	agent = new Agent(new THREE.Vector3(0,0,0),new THREE.Mesh(geometry,material))
-	
-	puck = new THREE.Mesh(new THREE.CylinderGeometry(10, 10, 2, 20), new THREE.MeshBasicMaterial({
-		color: 'yellow',
-		transparent: true,
-		opacity: 0.3
-	}));
-	scene.add(puck);
-	
-	raycaster = new THREE.Raycaster();
-	document.addEventListener('pointerdown', onDocumentMouseDown, false);
-	
-	plane = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.MeshBasicMaterial({
-	transparent: true,
-    opacity: 0.5,
-    visible: true
-	}));
-	scene.add(plane);
-	plane.rotation.x = -Math.PI / 2;
-	pickables = [plane];
+}
+
+function buildHead(y){
+	var head = new THREE.Group();
+	var geometry = new THREE.BufferGeometry();	
+	var vertices = [];
+	var indices = [];
+	var uvs = [];
 	
 	
+	const ww = 1;
+	const hh = 3;
+	const UU = 14*ww;
+	const VV = hh + 5*ww;
+	const WW = 8, HH = 8,DD = 8;
+	
+	var a = {u: 2*ww, v: hh+5*ww};
+	var b = {u: 4*ww, v: hh+5*ww};
+	var c = {u: 6*ww, v: hh+5*ww};
+	var d = {u: 0, v: hh+3*ww};
+	var e = {u: 2*ww, v: hh+3*ww};
+	var f = {u: 4*ww, v: hh+3*ww};
+	var g = {u: 6*ww, v: hh+3*ww};
+	var h = {u: 8*ww, v: hh+3*ww};
+	var i = {u: 0, v: hh+ww};
+	var j = {u: 2*ww, v: hh+ww};
+	var k = {u: 4*ww, v: hh+ww};
+	var l = {u: 6*ww, v: hh+ww};
+	var m = {u: 8*ww, v: hh+ww};
+	
+	vertices.push(WW/2,HH/2,DD/2, WW/2,-HH/2,DD/2, WW/2,-HH/2,-DD/2, WW/2,HH/2,-DD/2 );
+	indices.push(0,1,2, 0,2,3);
+	uvs.push (e.u/UU,e.v/VV, j.u/UU,j.v/VV, k.u/UU,k.v/VV, f.u/UU,f.v/VV);
+	
+	vertices.push(WW/2,HH/2,-DD/2, WW/2,-HH/2,-DD/2, -WW/2,-HH/2,-DD/2, -WW/2,HH/2,-DD/2 );
+	indices.push(4,5,6, 4,6,7);
+	uvs.push (f.u/UU,f.v/VV, k.u/UU,k.v/VV, l.u/UU,l.v/VV, g.u/UU,g.v/VV);
+	
+	vertices.push(-WW/2,HH/2,-DD/2, -WW/2,-HH/2,-DD/2, -WW/2,-HH/2,DD/2, -WW/2,HH/2,DD/2 );
+	indices.push(8,9,10, 8,10,11);
+	uvs.push (g.u/UU,g.v/VV, l.u/UU,l.v/VV, m.u/UU,m.v/VV, h.u/UU,h.v/VV);
+	
+	vertices.push(-WW/2,HH/2,DD/2, -WW/2,-HH/2,DD/2, WW/2,-HH/2,DD/2, WW/2,HH/2,DD/2 );
+	indices.push(12,13,14, 12,14,15);
+	uvs.push (d.u/UU,d.v/VV, i.u/UU,i.v/VV, j.u/UU,j.v/VV, e.u/UU,e.v/VV);
+	
+	vertices.push(-WW/2,HH/2,DD/2, WW/2,HH/2,DD/2, WW/2,HH/2,-DD/2, -WW/2,HH/2,-DD/2 );
+	indices.push(16,17,18, 16,18,19);
+	uvs.push (a.u/UU,a.v/VV, e.u/UU,e.v/VV, f.u/UU,f.v/VV, b.u/UU,b.v/VV);	
+	
+	vertices.push(WW/2,-HH/2,DD/2, -WW/2,-HH/2,DD/2, -WW/2,-HH/2,-DD/2, WW/2,-HH/2,-DD/2 );
+	indices.push(20,21,22, 20,22,23);
+	uvs.push (b.u/UU,b.v/VV, f.u/UU,f.v/VV, g.u/UU,g.v/VV, c.u/UU,c.v/VV);
+	
+	geometry.setIndex(indices);  
+	geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+	geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));	
+	var material = new THREE.MeshBasicMaterial({map: texture, side:THREE.DoubleSide});
+	var mesh = new THREE.Mesh(geometry,material);
+	head.add(mesh);
+	head.position.y = y;
+	
+	return head;
+}
+
+function buildArms(x,y){
+	let Arms = new THREE.Group();
+	var geometry = new THREE.BufferGeometry();	
+	var vertices = [];
+	var indices = [];
+	var uvs = [];
+	
+	const ww = 1;
+	const hh = 3;
+	const UU = 14*ww;
+	const VV = hh + 5*ww;
+	const WW = 4, HH = 12,DD = 4;
+		
+	var a = {u: 11*ww, v: hh+ww};
+	var b = {u: 12*ww, v: hh+ww};
+	var c = {u: 13*ww, v: hh+ww};
+	var d = {u: 10*ww, v: hh};
+	var e = {u: 11*ww, v: hh};
+	var f = {u: 12*ww, v: hh};
+	var g = {u: 13*ww, v: hh};
+	var h = {u: 14*ww, v: hh};
+	var i = {u: 10*ww, v: 0};
+	var j = {u: 11*ww, v: 0};
+	var k = {u: 12*ww, v: 0};
+	var l = {u: 13*ww, v: 0};
+	var m = {u: 14*ww, v: 0};
+
+	
+	vertices.push(WW/2,HH/2,DD/2, WW/2,-HH/2,DD/2, WW/2,-HH/2,-DD/2, WW/2,HH/2,-DD/2 );
+	indices.push(0,1,2, 0,2,3);
+	uvs.push (e.u/UU,e.v/VV, j.u/UU,j.v/VV, k.u/UU,k.v/VV, f.u/UU,f.v/VV);
+	
+	vertices.push(WW/2,HH/2,-DD/2, WW/2,-HH/2,-DD/2, -WW/2,-HH/2,-DD/2, -WW/2,HH/2,-DD/2 );
+	indices.push(4,5,6, 4,6,7);
+	uvs.push (f.u/UU,f.v/VV, k.u/UU,k.v/VV, l.u/UU,l.v/VV, g.u/UU,g.v/VV);
+	
+	vertices.push(-WW/2,HH/2,-DD/2, -WW/2,-HH/2,-DD/2, -WW/2,-HH/2,DD/2, -WW/2,HH/2,DD/2 );
+	indices.push(8,9,10, 8,10,11);
+	uvs.push (g.u/UU,g.v/VV, l.u/UU,l.v/VV, m.u/UU,m.v/VV, h.u/UU,h.v/VV);
+	
+	vertices.push(-WW/2,HH/2,DD/2, -WW/2,-HH/2,DD/2, WW/2,-HH/2,DD/2, WW/2,HH/2,DD/2 );
+	indices.push(12,13,14, 12,14,15);
+	uvs.push (d.u/UU,d.v/VV, i.u/UU,i.v/VV, j.u/UU,j.v/VV, e.u/UU,e.v/VV);
+	
+	vertices.push(-WW/2,HH/2,DD/2, WW/2,HH/2,DD/2, WW/2,HH/2,-DD/2, -WW/2,HH/2,-DD/2 );
+	indices.push(16,17,18, 16,18,19);
+	uvs.push (a.u/UU,a.v/VV, e.u/UU,e.v/VV, f.u/UU,f.v/VV, b.u/UU,b.v/VV);	
+	
+	vertices.push(WW/2,-HH/2,DD/2, -WW/2,-HH/2,DD/2, -WW/2,-HH/2,-DD/2, WW/2,-HH/2,-DD/2 );
+	indices.push(20,21,22, 20,22,23);
+	uvs.push (b.u/UU,b.v/VV, f.u/UU,f.v/VV, g.u/UU,g.v/VV, c.u/UU,c.v/VV);
+
+	geometry.setIndex(indices);  
+	geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+	geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));	
+	var material = new THREE.MeshBasicMaterial({map: texture, side:THREE.DoubleSide});
+	var mesh = new THREE.Mesh(geometry,material);
+	mesh.position.y = -0.5*HH;
+	Arms.add(mesh);
+	Arms.position.set(0,y + 0.5*HH,x);
+	
+	return Arms;
+}
+function buildLegs(x,y){
+	let Legs = new THREE.Group();
+		var geometry = new THREE.BufferGeometry();	
+	var vertices = [];
+	var indices = [];
+	var uvs = [];
+	
+	
+	
+	const ww = 1;
+	const hh = 3;
+	const UU = 14*ww;
+	const VV = hh + 5*ww;
+	const WW = 4, HH = 12,DD = 4;
+		
+	var a = {u: 1*ww, v: hh+ww};
+	var b = {u: 2*ww, v: hh+ww};
+	var c = {u: 3*ww, v: hh+ww};
+	var d = {u: 0*ww, v: hh};
+	var e = {u: 1*ww, v: hh};
+	var f = {u: 2*ww, v: hh};
+	var g = {u: 3*ww, v: hh};
+	var h = {u: 4*ww, v: hh};
+	var i = {u: 0*ww, v: 0};
+	var j = {u: 1*ww, v: 0};
+	var k = {u: 2*ww, v: 0};
+	var l = {u: 3*ww, v: 0};
+	var m = {u: 4*ww, v: 0};
+	
+	vertices.push(WW/2,HH/2,DD/2, WW/2,-HH/2,DD/2, WW/2,-HH/2,-DD/2, WW/2,HH/2,-DD/2 );
+	indices.push(0,1,2, 0,2,3);
+	uvs.push (e.u/UU,e.v/VV, j.u/UU,j.v/VV, k.u/UU,k.v/VV, f.u/UU,f.v/VV);
+	
+	vertices.push(WW/2,HH/2,-DD/2, WW/2,-HH/2,-DD/2, -WW/2,-HH/2,-DD/2, -WW/2,HH/2,-DD/2 );
+	indices.push(4,5,6, 4,6,7);
+	uvs.push (f.u/UU,f.v/VV, k.u/UU,k.v/VV, l.u/UU,l.v/VV, g.u/UU,g.v/VV);
+	
+	vertices.push(-WW/2,HH/2,-DD/2, -WW/2,-HH/2,-DD/2, -WW/2,-HH/2,DD/2, -WW/2,HH/2,DD/2 );
+	indices.push(8,9,10, 8,10,11);
+	uvs.push (g.u/UU,g.v/VV, l.u/UU,l.v/VV, m.u/UU,m.v/VV, h.u/UU,h.v/VV);
+	
+	vertices.push(-WW/2,HH/2,DD/2, -WW/2,-HH/2,DD/2, WW/2,-HH/2,DD/2, WW/2,HH/2,DD/2 );
+	indices.push(12,13,14, 12,14,15);
+	uvs.push (d.u/UU,d.v/VV, i.u/UU,i.v/VV, j.u/UU,j.v/VV, e.u/UU,e.v/VV);
+	
+	vertices.push(-WW/2,HH/2,DD/2, WW/2,HH/2,DD/2, WW/2,HH/2,-DD/2, -WW/2,HH/2,-DD/2 );
+	indices.push(16,17,18, 16,18,19);
+	uvs.push (a.u/UU,a.v/VV, e.u/UU,e.v/VV, f.u/UU,f.v/VV, b.u/UU,b.v/VV);	
+	
+	vertices.push(WW/2,-HH/2,DD/2, -WW/2,-HH/2,DD/2, -WW/2,-HH/2,-DD/2, WW/2,-HH/2,-DD/2 );
+	indices.push(20,21,22, 20,22,23);
+	uvs.push (b.u/UU,b.v/VV, f.u/UU,f.v/VV, g.u/UU,g.v/VV, c.u/UU,c.v/VV);	
+	
+	geometry.setIndex(indices);  
+	geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+	geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));	
+	var material = new THREE.MeshBasicMaterial({map: texture, side:THREE.DoubleSide});
+	var mesh = new THREE.Mesh(geometry,material);
+	mesh.position.y = -0.5*HH;
+	Legs.add(mesh);
+	Legs.position.set(0,y + 0.5*HH,x);
+	
+	return Legs;
+}
+function buildBody(y){
+	var body = new THREE.Group();
+	
+	var geometry = new THREE.BufferGeometry();	
+	var vertices = [];
+	var indices = [];
+	var uvs = [];
+	
+	
+	const ww = 1;
+	const hh = 3;
+	const UU = 14*ww;
+	const VV = hh + 5*ww;
+	const WW = 4, HH = 12,DD = 8;
+	
+	var a = {u: 5*ww, v: hh+ww};
+	var b = {u: 7*ww, v: hh+ww};
+	var c = {u: 9*ww, v: hh+ww};
+	var d = {u: 4*ww, v: hh};
+	var e = {u: 5*ww, v: hh};
+	var f = {u: 7*ww, v: hh};
+	var g = {u: 8*ww, v: hh};
+	var h = {u: 10*ww, v: hh};
+	var i = {u: 4*ww, v: 0};
+	var j = {u: 5*ww, v: 0};
+	var k = {u: 7*ww, v: 0};
+	var l = {u: 8*ww, v: 0};
+	var m = {u: 10*ww, v: 0};
+	var x = {u: 9*ww, v: hh};
+	
+	
+	vertices.push(WW/2,HH/2,DD/2, WW/2,-HH/2,DD/2, WW/2,-HH/2,-DD/2, WW/2,HH/2,-DD/2 );
+	indices.push(0,1,2, 0,2,3);
+	uvs.push (e.u/UU,e.v/VV, j.u/UU,j.v/VV, k.u/UU,k.v/VV, f.u/UU,f.v/VV);
+	
+	vertices.push(WW/2,HH/2,-DD/2, WW/2,-HH/2,-DD/2, -WW/2,-HH/2,-DD/2, -WW/2,HH/2,-DD/2 );
+	indices.push(4,5,6, 4,6,7);
+	uvs.push (f.u/UU,f.v/VV, k.u/UU,k.v/VV, l.u/UU,l.v/VV, g.u/UU,g.v/VV);
+	
+	vertices.push(-WW/2,HH/2,-DD/2, -WW/2,-HH/2,-DD/2, -WW/2,-HH/2,DD/2, -WW/2,HH/2,DD/2 );
+	indices.push(8,9,10, 8,10,11);
+	uvs.push (g.u/UU,g.v/VV, l.u/UU,l.v/VV, m.u/UU,m.v/VV, h.u/UU,h.v/VV);
+	
+	vertices.push(-WW/2,HH/2,DD/2, -WW/2,-HH/2,DD/2, WW/2,-HH/2,DD/2, WW/2,HH/2,DD/2 );
+	indices.push(12,13,14, 12,14,15);
+	uvs.push (d.u/UU,d.v/VV, i.u/UU,i.v/VV, j.u/UU,j.v/VV, e.u/UU,e.v/VV);
+	
+	vertices.push(-WW/2,HH/2,DD/2, WW/2,HH/2,DD/2, WW/2,HH/2,-DD/2, -WW/2,HH/2,-DD/2 );
+	indices.push(16,17,18, 16,18,19);
+	uvs.push (a.u/UU,a.v/VV, e.u/UU,e.v/VV, f.u/UU,f.v/VV, b.u/UU,b.v/VV);	
+	
+	vertices.push(WW/2,-HH/2,DD/2, -WW/2,-HH/2,DD/2, -WW/2,-HH/2,-DD/2, WW/2,-HH/2,-DD/2 );
+	indices.push(20,21,22, 20,22,23);
+	uvs.push (b.u/UU,b.v/VV, f.u/UU,f.v/VV, x.u/UU,x.v/VV, c.u/UU,c.v/VV);
+	
+	
+	
+	geometry.setIndex(indices);  
+	geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+	geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));	
+	var material = new THREE.MeshBasicMaterial({map: texture, side:THREE.DoubleSide});
+	var mesh = new THREE.Mesh(geometry,material);
+	body.add(mesh);
+	body.position.y = y;
+	
+	return body;
 }
 
 function animate(){
 	
 	var dt = clock.getDelta();
-	
-	agent.update(dt);
-	steve.update(dt,agent.mesh);
+	pos.copy(body.position);
+	update(dt);
+	body.position.copy(pos)
+	body.rotation.y = angle;
+	if(vel.length() <= 1 ){
+		let intKey = keyframe(clock.getElapsedTime(),3);
+		Lleg.rotation.z = intKey[1];
+		Rleg.rotation.z = intKey[0];
+		Rhand.rotation.z = intKey[1];
+		Lhand.rotation.z = intKey[0];
+	}
+
+	else if(vel.length() <= 10  && vel.length() > 1){
+		let intKey = keyframe(clock.getElapsedTime(),0);
+		Lleg.rotation.z = intKey[1];
+		Rleg.rotation.z = intKey[0];
+		Rhand.rotation.z = intKey[1];
+		Lhand.rotation.z = intKey[0];
+		T = 1;
+		
+	}	
+	else if(vel.length() > 10 && vel.length() <= 30){
+		let intKey = keyframe(clock.getElapsedTime(),1);
+		Lleg.rotation.z = intKey[1];
+		Rleg.rotation.z = intKey[0];
+		Rhand.rotation.z = intKey[1];
+		Lhand.rotation.z = intKey[0];
+		T = 0.8;
+	}	
+	else if(vel.length() > 30 && vel.length() <= 40){
+		let intKey = keyframe(clock.getElapsedTime(),2);
+		Lleg.rotation.z = intKey[1];
+		Rleg.rotation.z = intKey[0];
+		Rhand.rotation.z = intKey[1];
+		Lhand.rotation.z = intKey[0];
+		T = 0.7;
+	}
 	
 	requestAnimationFrame(animate);
 	render();
+}
+function update(dt) {
+
+  keyboard.update();
+  
+  if (vel.length() > 0) {
+    angle = 1.5*Math.PI + Math.atan2(vel.x, vel.z); 
+  }
+
+  if (keyboard.pressed("space"))  
+ 	  power = 0.1;               
+  if (keyboard.pressed("up"))  
+ 	  power *= 1.2;        
+  if (keyboard.pressed("down"))  
+ 	  power /= 1.2;   
+ 	
+  power = Math.clamp (power, 0, 80.0); 
+  
+  
+  var angle_thrust = angle;
+  if (keyboard.pressed("left"))
+    angle_thrust += 0.3;
+  if (keyboard.pressed("right"))
+    angle_thrust -= 0.3;
+    
+  // compute force
+  var thrust = new THREE.Vector3(1,0,0).multiplyScalar(power).applyAxisAngle (new THREE.Vector3(0,1,0), angle_thrust);
+  force.copy (thrust);
+  force.add(vel.clone().multiplyScalar(-2))
+
+  // eulers
+  vel.add(force.clone().multiplyScalar(dt));
+  pos.add(vel.clone().multiplyScalar(dt));
 }
 
 function render(){
@@ -540,21 +517,6 @@ function onWindowResize(){
 	camera.aspect = window.innerWidth/window.innerHeight;
 	camera.updateProjectionMatrix();
 	renderer.setSize(window.innerWidth,window.innerHeight);
-}
-function onDocumentMouseDown(event) {
-
-  event.preventDefault();
-  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-
-  // find intersections
-  raycaster.setFromCamera(mouse, camera);
-  var intersects = raycaster.intersectObjects(pickables);
-  if (intersects.length > 0) {
-    puck.position.copy(intersects[0].point);
-    agent.setTarget(intersects[0].point.x,intersects[0].point.y,intersects[0].point.z)
-  }
-
 }
 
 </script>
