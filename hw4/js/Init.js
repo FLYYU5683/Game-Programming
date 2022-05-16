@@ -1,5 +1,5 @@
-import * as THREE from 'http://cdn.skypack.dev/three@0.136';
-import {OrbitControls} from 'http://cdn.skypack.dev/three@0.136/examples/jsm/controls/OrbitControls.js';
+import * as THREE from 'https://cdn.skypack.dev/three@0.136';
+import {OrbitControls} from 'https://cdn.skypack.dev/three@0.136/examples/jsm/controls/OrbitControls.js';
 import {readModel,obj} from './Model.js';
 import {Agent} from './Agent.js';
 import {Steve} from './Steve.js';

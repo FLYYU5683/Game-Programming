@@ -1,4 +1,4 @@
-import * as THREE from 'http://cdn.skypack.dev/three@0.136';
+import * as THREE from 'https://cdn.skypack.dev/three@0.136';
 import {scene} from './Init.js';
 function clamp(a,b,c){
 	{return Math.max(b,Math.min(c,a));}
