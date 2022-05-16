@@ -1,61 +1,17 @@
-<!DOCTYPE html>
-<html>
-<body>
-<style>
-body {
-	overflow: hidden;
-	margin:0;
-	padding:0;
-}
-#info {
-	position: absolute;
-	top: 20px;
-	width: 100%;
-	text-align: center;
-	color: #ffff00;
-}
-</style>
-<div id = "info">
-<button id = 'toggle' style = "width: 5%;margin-right:25px;background-color:pink;">Switch</button>
-</div>
-<script src="https://threejs.org/build/three.min.js"></script>
-<script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
-<script src="https://threejs.org/examples/js/misc/Gyroscope.js"></script>
-<script src="https://jyunming-chen.github.io/tutsplus/js/KeyboardState.js"></script>
-
-
-<script
-  src="https://code.jquery.com/jquery-3.6.0.min.js"
-  integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4="
-  crossorigin="anonymous"></script>
-<script>
-
-$("#toggle").click(function(){
-	toggle = !toggle;
-});
-
-(function() {   Math.clamp = function(val,min,max){     return Math.min(Math.max(val,min),max);       }})();
-
-var scene, camera, renderer, gyroCamera, gyro;
-var clock = new THREE.Clock(), T = 2;
-var toggle = true;
+import * as THREE from 'http://cdn.skypack.dev/three@0.136';
+import {scene,texture} from './Init.js';
+var T = 2;
+var clock = new THREE.Clock();
 var ts = clock.getElapsedTime();
-var keyboard = new KeyboardState();
-var texture;
-var steve;
-var agent;
-
-var raycaster;
-var mouse = new THREE.Vector2();
-var pickables = [];
-
+function clamp(a,b,c){
+	{return Math.max(b,Math.min(c,a));}
+}
 class Steve {
 	constructor(WW,HH){
 		this.WW = WW;
 		this.HH = HH;
 		this.vel = new THREE.Vector3(0.0001,0,0)
 		this.force = new THREE.Vector3(0,0,0);
-		this.pos = new THREE.Vector3(-50,22,0);
 		this.power = 0.1; 
 		this.angle = 0;
 		
@@ -71,9 +27,11 @@ class Steve {
 		this.keys = [[0,this.pose],[0.5,this.pose1],[1,this.pose]]
 		
 		this.MAXSPEED = 40;
-		this.ARRIVAL_R = 50;
+		this.ARRIVAL_R = 10;
+		this.nbhd = [];
 	}
 	buildSteve(){
+		
 		this.body = this.buildBody(1.5*this.HH);
 		this.head = this.buildHead(0.5*this.HH+this.WW);
 		
@@ -85,24 +43,31 @@ class Steve {
 
 		this.body.add(this.head,this.Lhand,this.Rhand,this.Lleg,this.Rleg);
 		scene.add(this.body);
+		this.body.position.set(100,20,0)
 	}
 	update(dt,target) {
-	
-		this.setTarget(target)
+		this.findNbhd(target)
+		this.setTarget(target.group)
 		this.accumulateForce();
 		this.vel.add(this.force.clone().multiplyScalar(dt));
 		this.body.lookAt(this.body.position.clone().add(this.vel));
+		
 		if (this.target) {
-			let diff = this.target.clone().sub(this.pos)
+			let diff = this.target.clone().sub(this.body.position)
 			let dst = diff.length();
 			if (dst < this.ARRIVAL_R) {
 				this.vel.setLength(dst)
 			}
 		}
-    
-		this.pos.add(this.vel.clone().multiplyScalar(dt))
-		this.body.position.copy(this.pos)
-
+		
+		this.vel.setLength(clamp(this.vel.length(), 0, this.MAXSPEED))
+		this.body.position.add(this.vel.clone().multiplyScalar(dt))
+		/*
+		if (this.vel.length() > 0.1) {
+			this.angle = Math.atan2 (-this.vel.z, this.vel.x);
+			this.body.rotation.y = -this.angle;
+		}
+		*/
 
 		this.pose.lThigh = -Math.PI * this.vel.length() / 120;
 		this.pose.rThigh = Math.PI * this.vel.length() / 120;
@@ -117,18 +82,34 @@ class Steve {
 		
 	}
 	setTarget(target) {
-		console.log(target.position)
-		if (this.target !== undefined)
-			this.target.copy(target.localToWorld(new THREE.Vector3(-10,18,5)));
-		else
-			this.target = new THREE.Vector3(target.position.x,target.position.y,target.position.z);
+
+		if (this.target !== undefined){
+			this.target.copy(target.localToWorld(new THREE.Vector3(-40,16,80)));
+		}
+		else{
+			var temp = new THREE.Vector3(0,0,0);
+			temp.copy(target.localToWorld(new THREE.Vector3(-40,16,80)))
+			this.target = new THREE.Vector3(temp.x,temp.y,temp.z);
+		}
 	}
 	targetInducedForce(targetPos) { 
-		return targetPos.clone().sub(this.pos).normalize().multiplyScalar(this.MAXSPEED).sub(this.vel)
+		return targetPos.clone().sub(this.body.position).normalize().multiplyScalar(this.MAXSPEED).sub(this.vel)
+	}
+	distanceTo(otherAgent) {
+		return this.body.position.distanceTo(otherAgent.position)
+	}
+	addNbr(otherAgent) {
+		this.nbhd.push(otherAgent)
 	}
 	accumulateForce() {
 		if (this.target)
 			this.force.copy(this.targetInducedForce(this.target));
+		let push = new THREE.Vector3()
+		for (let i = 0; i < this.nbhd.length; i++) {
+			let point = this.body.position.clone().sub(this.nbhd[i].localToWorld(new THREE.Vector3(0,16,30)));
+			push.add(point.setLength(4800 / point.length()))
+		}
+		this.force.add(push)
 	}
 	keyframe(t) {
 		var s = ((t - ts) % T) / T;
@@ -143,6 +124,49 @@ class Steve {
 		let intKey = [this.keys[ii][1].lThigh * (1 - a) + this.keys[ii + 1][1].lThigh * a,
 				  this.keys[ii][1].rThigh * (1 - a) + this.keys[ii + 1][1].rThigh * a];
 		return intKey;
+	}
+	findNbhd(agents) {
+		let dst;
+		this.nbhd = []; 
+		if(this.Check_Intersect(agents.Rect,this.body,12)){
+			this.addNbr(agents.group)
+			console.log("true")
+		}
+	}
+	Check_Intersect(Rect, C, Rad) {
+		const Rad2 = Rad * Rad;
+	  
+		let xHat = Rect.px;
+		let zHat = xHat.clone().cross (new THREE.Vector3(0,1,0)).normalize();
+	  
+		let R = {max:{x:0, z:0}, min:{x:0, z:0}};
+		let cp = Rect.max.clone().sub (C.position);   
+		R.max.x = cp.dot (xHat), R.max.z = cp.dot (zHat);
+	  
+		cp = Rect.min.clone().sub (C.position);
+		R.min.x = cp.dot (xHat), R.min.z = cp.dot (zHat);
+	  
+		if (R.max.x < 0) 			/* R to left of circle center */
+		if (R.max.z < 0) 		/* R in lower left corner */
+				return ((R.max.x * R.max.x + R.max.z * R.max.z) < Rad2);
+		else if (R.min.z > 0) 	/* R in upper left corner */
+				return ((R.max.x * R.max.x + R.min.z * R.min.z) < Rad2);
+		else 					/* R due West of circle */
+				return(Math.abs(R.max.x) < Rad);
+		else if (R.min.x > 0)  	/* R to right of circle center */
+			if (R.max.z < 0) 	/* R in lower right corner */
+					return ((R.min.x * R.min.x + R.max.z * R.max.z) < Rad2);
+		else if (R.min.z > 0)  	/* R in upper right corner */
+				return ((R.min.x * R.min.x + R.min.z * R.min.z) < Rad2);
+		else 				/* R due East of circle */
+				return (R.min.x < Rad);
+		else				/* R on circle vertical centerline */
+			if (R.max.z < 0) 	/* R due South of circle */
+				return (Math.abs(R.max.z) < Rad);
+		else if (R.min.z > 0)  	/* R due North of circle */
+				return (R.min.z < Rad);
+		else 				/* R contains circle centerpoint */
+				return(true);
 	}
 	buildHead(y){
 		var head = new THREE.Group();
@@ -403,160 +427,4 @@ class Steve {
 	}
 	
 }
-class Agent {
-	constructor(pos, mesh) {
-  
-		this.pos = pos.clone();
-		this.vel = new THREE.Vector3();
-		this.force = new THREE.Vector3();
-		this.target = null;
-		this.size = 3;
-		this.mesh = mesh;
-		scene.add (mesh);
-		
-		this.MAXSPEED = 50;
-		this.ARRIVAL_R = 10;
-		this.nbhd = [];
-	}
-	update(dt) {
-		this.accumulateForce();
-		this.vel.add(this.force.clone().multiplyScalar(dt));
-    
-		if (this.target) {
-			let diff = this.target.clone().sub(this.pos)
-			let dst = diff.length();
-			if (dst < this.ARRIVAL_R) {
-				this.vel.setLength(dst)
-			}
-		}
-    
-		this.pos.add(this.vel.clone().multiplyScalar(dt))
-		this.mesh.position.copy(this.pos)
-	}
-	setTarget(x,y,z) {
-		if (this.target !== null)
-			this.target.set(x,y,z);
-		else
-			this.target = new THREE.Vector3(x,y,z);
-	}
-	targetInducedForce(targetPos) { 
-		return targetPos.clone().sub(this.pos).normalize().multiplyScalar(this.MAXSPEED).sub(this.vel)
-	}
-	accumulateForce() {
-		if (this.target)
-			this.force.copy(this.targetInducedForce(this.target));
-	}
-
-}
-
-init();
-animate();
-	
-function init(){
-	renderer = new THREE.WebGLRenderer({
-		antialias: true
-	});
-	
-	renderer.setSize(window.innerWidth, window.innerHeight);
-	renderer.setClearColor(0x888888);
-	document.body.appendChild(renderer.domElement);
-	window.addEventListener('resize', onWindowResize , false);
-	
-	scene = new THREE.Scene();
-	camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 1, 10000);
-	let controls = new THREE.OrbitControls(camera, renderer.domElement);
-	camera.position.z = 130;
-	camera.position.y = 30;
-	
-	
-	gyroCamera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 1, 10000);
-	gyroCamera.position.z = 130;
-	gyroCamera.position.y = 30;
-	gyroCamera.lookAt (0,0,0);
-	
-	var gridXZ = new THREE.GridHelper(200, 20, 'red', 'white');
-	scene.add(gridXZ);
-	var loader = new THREE.TextureLoader();
-	loader.setCrossOrigin('');
-	texture = loader.load ('https://i.imgur.com/dSQ0A9W.png');
-	
-	steve = new Steve(4,12);
-	steve.buildSteve();
-	gyro = new THREE.Gyroscope();
-	steve.body.add(gyro)
-	gyro.add (gyroCamera)
-	
-	var geometry = new THREE.BoxGeometry(2,2,2);
-	var material = new THREE.MeshBasicMaterial({color:'red'});
-	agent = new Agent(new THREE.Vector3(0,0,0),new THREE.Mesh(geometry,material))
-	
-	puck = new THREE.Mesh(new THREE.CylinderGeometry(10, 10, 2, 20), new THREE.MeshBasicMaterial({
-		color: 'yellow',
-		transparent: true,
-		opacity: 0.3
-	}));
-	scene.add(puck);
-	
-	raycaster = new THREE.Raycaster();
-	document.addEventListener('pointerdown', onDocumentMouseDown, false);
-	
-	plane = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.MeshBasicMaterial({
-	transparent: true,
-    opacity: 0.5,
-    visible: true
-	}));
-	scene.add(plane);
-	plane.rotation.x = -Math.PI / 2;
-	pickables = [plane];
-	
-	
-}
-
-function animate(){
-	
-	var dt = clock.getDelta();
-	
-	agent.update(dt);
-	steve.update(dt,agent.mesh);
-	
-	requestAnimationFrame(animate);
-	render();
-}
-
-function render(){
-	if(toggle){
-		renderer.clear();
-		renderer.setViewport(0, 0,window.innerWidth,window.innerHeight);
-		renderer.render(scene,camera);
-	}
-	else{
-		renderer.clear();
-		renderer.setViewport(0, 0,window.innerWidth,window.innerHeight);
-		renderer.render(scene,gyroCamera);
-	}
-
-}
-function onWindowResize(){
-	camera.aspect = window.innerWidth/window.innerHeight;
-	camera.updateProjectionMatrix();
-	renderer.setSize(window.innerWidth,window.innerHeight);
-}
-function onDocumentMouseDown(event) {
-
-  event.preventDefault();
-  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-
-  // find intersections
-  raycaster.setFromCamera(mouse, camera);
-  var intersects = raycaster.intersectObjects(pickables);
-  if (intersects.length > 0) {
-    puck.position.copy(intersects[0].point);
-    agent.setTarget(intersects[0].point.x,intersects[0].point.y,intersects[0].point.z)
-  }
-
-}
-
-</script>
-</body>
-</html>
+export{Steve}
