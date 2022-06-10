@@ -14,9 +14,10 @@
 }
 
 body {
-  overflow: hidden;
+	overflow: hidden;
+	margin:0;
+	padding:0;
 }
-
 
 </style>
 </head>
@@ -248,6 +249,7 @@ function init() {
   let controls = new THREE.OrbitControls(camera, renderer.domElement);
 
   document.body.appendChild(renderer.domElement);
+  window.addEventListener('resize', onWindowResize , false);
   ///////////////////////////////////////////////////////////
   bodyballL = new THREE.Mesh (new THREE.SphereGeometry(1,20,20), new THREE.MeshBasicMaterial({color:'white'}));
   bodyballR = new THREE.Mesh (new THREE.SphereGeometry(1,20,20), new THREE.MeshBasicMaterial({color:'white'}));
@@ -377,6 +379,12 @@ function keyframe(t) {
   var intKey = [keys[ii][1].lThigh * (1 - a) + keys[ii + 1][1].lThigh * a,
             keys[ii][1].rThigh * (1 - a) + keys[ii + 1][1].rThigh * a];
 	return intKey;
+}
+
+function onWindowResize(){
+	camera.aspect = window.innerWidth/window.innerHeight;
+	camera.updateProjectionMatrix();
+	renderer.setSize(window.innerWidth,window.innerHeight);
 }
 
 function collidingPlane(planes,pos,trans) {
