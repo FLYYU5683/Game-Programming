@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+<style>
+#info {
+  position: absolute;
+  top: 0px;
+  width: 100%;
+  padding: 10px;
+  text-align: center;
+  color: #ffff00
+}
+
+body {
+  overflow: hidden;
+}
+
+
+</style>
+</head>
+
+<body> 
+<div id="info">biped walking
+</div>
+<script src="https://threejs.org/build/three.min.js"></script>
+<script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
+<script src="ccdsys.js"></script>
+<!--script src="https://jyunming-chen.github.io/game3js/js/ccdsys.js"></script-->
+<script src="https://raw.githack.com/mrdoob/three.js/dev/examples/js/misc/Gyroscope.js"></script>
+<script>
+
+// make your own copy of ccdsys.js
+// line 48: MAXITER = 40 
+//
+ 
+var biped = {
+  thetaGroin: 0.31,
+  thetaKnee: 0.6, 
+  targetL: new THREE.Vector3(),
+  targetR: new THREE.Vector3(),
+  targetLL: new THREE.Vector3(),
+  targetRR: new THREE.Vector3(),
+  
+  init: function() {
+	let body = new THREE.Object3D();
+	let mat = new THREE.MeshNormalMaterial();
+	
+	this.head = new THREE.Object3D();
+  	let headMesh = new THREE.Mesh (new THREE.BoxGeometry(3, 3, 3), mat)
+  	this.head.add (headMesh)
+  	headMesh.position.y = Lh*3+1.5
+  
+  	this.leftThigh = new THREE.Object3D();
+  	let leftThighMesh = new THREE.Mesh (new THREE.BoxGeometry(1, L2, 1), mat)
+  	this.leftThigh.add (leftThighMesh)
+  	leftThighMesh.position.y = -L2/2
+  	leftThighMesh.position.z = -bodyWidth/2;
+
+  	this.rightThigh = new THREE.Object3D();
+  	let rightThighMesh = new THREE.Mesh (new THREE.BoxGeometry(1, L2, 1), mat)
+  	this.rightThigh.add (rightThighMesh)
+  	rightThighMesh.position.y = -L2/2
+  	rightThighMesh.position.z = bodyWidth/2
+  
+  	this.leftLeg = new THREE.Object3D()
+  	let leftLegMesh = new THREE.Mesh (new THREE.BoxGeometry(1, L1, 1), mat)
+  	this.leftLeg.add (leftLegMesh)
+  	leftLegMesh.position.y = -L1/2
+	leftLegMesh.position.z = -bodyWidth/2;
+  	this.leftLeg.position.y = -L2
+
+  	this.rightLeg = new THREE.Object3D()
+  	let rightLegMesh = new THREE.Mesh (new THREE.BoxGeometry(1, L1, 1), mat)
+  	this.rightLeg.add (rightLegMesh)
+  	rightLegMesh.position.y = -L1/2
+	rightLegMesh.position.z = bodyWidth/2;
+  	this.rightLeg.position.y = -L2
+	
+  	this.leftArm = new THREE.Object3D()
+  	let leftArmMesh = new THREE.Mesh (new THREE.BoxGeometry(1, L2, 1), mat)
+  	this.leftArm.add (leftArmMesh)
+  	leftArmMesh.position.y = -L2/2
+	leftArmMesh.position.z = -bodyWidth/2 - 0.5;
+  	this.leftArm.position.y = Lh*3
+	this.leftArm.rotation.z = -Math.PI/9;
+
+  	this.rightArm = new THREE.Object3D()
+  	let rightArmMesh = new THREE.Mesh (new THREE.BoxGeometry(1, L2, 1), mat)
+  	this.rightArm.add (rightArmMesh)
+  	rightArmMesh.position.y = -L2/2
+	rightArmMesh.position.z = bodyWidth/2 + 0.5;
+  	this.rightArm.position.y = Lh*3;
+  	this.rightArm.rotation.z = Math.PI/9;
+	
+
+  	this.leftHand = new THREE.Object3D()
+  	let leftHandMesh = new THREE.Mesh (new THREE.BoxGeometry(1, L1, 1), mat)
+  	this.leftHand.add (leftHandMesh)
+  	leftHandMesh.position.y = -L1/2;
+	leftHandMesh.position.z = -bodyWidth/2 - 0.5;
+	this.leftHand.position.y = -L2;
+	this.leftHand.rotation.z = Math.PI/2;
+
+  	this.rightHand = new THREE.Object3D()
+  	let rightHandMesh = new THREE.Mesh (new THREE.BoxGeometry(1, L1, 1), mat)
+  	this.rightHand.add (rightHandMesh)
+  	rightHandMesh.position.y = -L1/2
+	rightHandMesh.position.z = bodyWidth/2 + 0.5;
+	this.rightHand.position.y = -L2
+	this.rightHand.rotation.z = Math.PI/2;
+  
+  	this.torso = new THREE.Object3D();
+  	let torsoMesh = new THREE.Mesh (new THREE.BoxGeometry(3, Lh*3, bodyWidth), mat)
+  	this.torso.add (torsoMesh)
+  	torsoMesh.position.y = Lh/2*3
+  
+  	body.add (this.torso)
+  	body.add (this.head)
+  	body.add (this.leftThigh)
+  	body.add (this.rightThigh)
+	
+  	body.add (this.leftArm)
+  	body.add (this.rightArm)
+	
+  	this.leftThigh.add (this.leftLeg)
+  	this.rightThigh.add (this.rightLeg)
+	
+  	this.leftArm.add (this.leftHand)
+  	this.rightArm.add (this.rightHand)
+	
+  	return body;
+  },
+  
+  update: function (thetaL,thetaR,keys) {
+  	//this.thetaGroin = theta[0]
+    //this.thetaKnee = theta[1]
+  
+    this.leftThigh.rotation.z = thetaL[0]
+    this.leftLeg.rotation.z = thetaL[1];
+	
+	this.rightThigh.rotation.z = thetaR[0]
+    this.rightLeg.rotation.z = thetaR[1];
+
+	this.leftArm.rotation.z = keys[1]
+	this.rightArm.rotation.z = keys[0] 
+	
+  }
+
+
+}
+
+class FinitePlane {
+  constructor(localPointOnPlane, localNormal, mesh, length, group) {
+    this.localPtOnPl = localPointOnPlane.clone();
+    this.localNormal = localNormal.clone();
+    this.mesh = mesh;
+    if (group === undefined)
+      scene.add(mesh)
+    else
+      group.add(mesh)
+    this.length = length || 1e10;
+  }
+  update() {
+    this.mesh.updateMatrixWorld();
+    this.ptOnPl = this.mesh.localToWorld(this.localPtOnPl.clone());
+    let normalMat = new THREE.Matrix3().getNormalMatrix(this.mesh.matrixWorld);
+    this.normal = this.localNormal.clone().applyMatrix3(normalMat).normalize()
+  }
+}
+
+///////////////////////////////////////////////////
+var camera, scene, renderer;
+
+const LS = 5.3
+const L2 = 5.2
+const L1 = 4.8
+const Lh = 3.3
+const Hh = 9.3  // tunable ...
+const Hr = 0.6;
+
+const Ts = 1;
+const Fc = 1.0;
+const bodyWidth = 5;
+
+const Vf = LS/Ts;
+
+var body;
+// markers ...
+var bodyball, leftfootball, rightfootball;
+var leftpos = [0,0];
+var rightpos = [LS,0];
+var bodypos = [LS/2,0];
+
+var clock = new THREE.Clock();
+var cumtime = 0;
+var nowTime = clock.getElapsedTime();
+var spot = 0;
+var planes = [];
+var table;
+var ts = clock.getElapsedTime();
+var T = 2;
+
+var pose1 = {
+	lThigh: -Math.PI/9,
+  rThigh: Math.PI/9
+}
+var pose2 = {
+	lThigh: Math.PI/9,
+  rThigh: -Math.PI/9
+}
+var keys = [[0, pose1],[0.5, pose2],[1,pose1]];
+
+init();
+animate();
+
+function fk (theta, joints) {  // all memory assumed in place
+  joints[0].set (0,0,0);
+  
+  var localzero = new THREE.Vector3(0, 0, 0);
+  var m = new THREE.Matrix4();
+  m.makeRotationZ(theta[0]);
+  m.multiply(new THREE.Matrix4().makeTranslation(0, -L2, 0));
+  localzero.applyMatrix4(m);
+  joints[1].copy(localzero);
+
+  localzero.set(0, 0, 0);
+  m.multiply(new THREE.Matrix4().makeRotationZ(theta[1]));
+  m.multiply(new THREE.Matrix4().makeTranslation(0, -L1, 0));
+  localzero.applyMatrix4(m);
+  joints[2].copy(localzero);
+}
+
+function init() {
+  scene = new THREE.Scene();
+
+  camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 1000);
+  camera.position.z = 50;
+
+  var gridXZ = new THREE.GridHelper(400, 40, 'red', '#66B3FF');
+  scene.add(gridXZ);
+
+  renderer = new THREE.WebGLRenderer();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setClearColor(0x888888);
+
+  let controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+  document.body.appendChild(renderer.domElement);
+  ///////////////////////////////////////////////////////////
+  bodyballL = new THREE.Mesh (new THREE.SphereGeometry(1,20,20), new THREE.MeshBasicMaterial({color:'white'}));
+  bodyballR = new THREE.Mesh (new THREE.SphereGeometry(1,20,20), new THREE.MeshBasicMaterial({color:'white'}));
+  bodyballLA = new THREE.Mesh (new THREE.SphereGeometry(1,20,20), new THREE.MeshBasicMaterial({color:'white'}));
+  bodyballRA = new THREE.Mesh (new THREE.SphereGeometry(1,20,20), new THREE.MeshBasicMaterial({color:'white'}));
+  leftfootball = new THREE.Mesh (new THREE.SphereGeometry(1,20,20), new THREE.MeshBasicMaterial({color:'green'}));
+  rightfootball = new THREE.Mesh (new THREE.SphereGeometry(1,20,20), new THREE.MeshBasicMaterial({color:'red'}));
+  scene.add (bodyballL,bodyballR,bodyballLA,bodyballRA, rightfootball, leftfootball);
+  
+  body = biped.init();
+  scene.add (body)
+  
+  biped.ccdSys = new CCDSys (fk)
+  biped.ccdSys.setCCDAxis (new THREE.Vector3(0,0,1), 0, -Math.PI/2, Math.PI/2)
+  biped.ccdSys.setCCDAxis (new THREE.Vector3(0,0,1), 1, -Math.PI, -1e-3)
+  
+  var gyro = new THREE.Gyroscope();
+  scene.add (gyro)
+  gyro.add (camera);
+  body.add (gyro);
+  
+  
+  let plane;
+  table = new THREE.Group();
+  scene.add(table);
+  table.updateMatrixWorld()
+  
+  var floor = new THREE.Mesh(new THREE.PlaneGeometry(200, 40), new THREE.MeshBasicMaterial({
+    side: THREE.DoubleSide,
+	color: 'white'
+  }));
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.x = 100;
+  floor.position.y = -0.1;
+
+  plane = new FinitePlane(new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 0, 1), floor, 200, table);
+  plane.update()
+  planes.push(plane);
+  
+}
+
+function trackers(tt) {
+   var body = [LS/2+LS*tt/Ts, Hh - Hr/2*Math.cos(2*Math.PI*tt/Ts)];
+   var n = Math.floor (tt/Ts);
+   
+   //return bodyElevation & footElevation
+   return [Hh - Hr/2*Math.cos(2*Math.PI*tt/Ts),
+  		   Fc/2 - Fc/2*Math.cos(2*Math.PI*tt/Ts)];
+}
+
+function animate() {
+
+  requestAnimationFrame(animate);
+  render();
+  
+  table.updateMatrixWorld();
+  planes.forEach(function(b) {
+    b.update()
+  });
+
+  var tt = clock.getElapsedTime();
+  var data = trackers (tt);
+
+  // compute my own delta ...
+  var dt = tt - nowTime;
+  cumtime += dt;
+  nowTime = tt;
+  
+
+  
+  var n = Math.floor(tt/Ts);
+  // n is even: left is swing
+  // n is odd:  right is swing
+  
+  if (Math.floor(n/2)*2 === n) { // n is even
+	var trans = [data[1],2*Vf*dt]
+	var angle = collidingPlane(planes,new THREE.Vector3(leftpos[0],leftpos[1],0),trans);
+  	leftpos[1] = data[1];
+  	leftpos[0] += 2*Vf*dt;
+
+  } else { // n is odd
+	var trans = [data[1],2*Vf*dt]
+	var angle = collidingPlane(planes,new THREE.Vector3(rightpos[0],rightpos[1],0),trans);
+  	rightpos[1] = data[1];
+  	rightpos[0] += 2*Vf*dt;
+
+  }
+  
+  bodypos[0] += Vf*dt;
+  bodypos[1] = data[0];
+  // move markers ...  
+  bodyballL.position.set (bodypos[0], bodypos[1], -bodyWidth/2);	
+  bodyballR.position.set (bodypos[0], bodypos[1],  bodyWidth/2);
+  
+  bodyballLA.position.set (bodypos[0], bodypos[1] + Lh*3, -(bodyWidth+1)/2);	
+  bodyballRA.position.set (bodypos[0], bodypos[1] + Lh*3,  (bodyWidth+1)/2);	
+  leftfootball.position.set (leftpos[0], leftpos[1], -bodyWidth/2);	
+  rightfootball.position.set (rightpos[0], rightpos[1], bodyWidth/2);	
+
+  body.position.set (bodypos[0], bodypos[1], 0);
+  let thetasL = [0,0]
+  let thetasR = [0,0]
+  biped.targetL.copy (body.worldToLocal (new THREE.Vector3(leftpos[0], leftpos[1], 0)))
+  biped.targetR.copy (body.worldToLocal (new THREE.Vector3(rightpos[0], rightpos[1], 0)))
+  biped.ccdSys.solve (biped.targetL, thetasL)
+  biped.ccdSys.solve (biped.targetR, thetasR)
+  
+  let intKey = keyframe(clock.getElapsedTime());
+  biped.update (thetasL,thetasR,intKey)	
+
+}
+
+function render() {
+  renderer.render(scene, camera);
+}
+
+function keyframe(t) {
+  var s = ((t - ts) % T) / T;
+
+  for (var i = 1; i < keys.length; i++) {
+    if (keys[i][0] > s) break;
+  }
+  // take i-1
+  var ii = i - 1;
+  var a = (s - keys[ii][0]) / (keys[ii + 1][0] - keys[ii][0]);
+  
+  var intKey = [keys[ii][1].lThigh * (1 - a) + keys[ii + 1][1].lThigh * a,
+            keys[ii][1].rThigh * (1 - a) + keys[ii + 1][1].rThigh * a];
+	return intKey;
+}
+
+function collidingPlane(planes,pos,trans) {
+    const EPS = 1e-5;
+    const CR = 0;
+    for (var i = 0; i < planes.length; i++) {
+      let plane = planes[i];
+      let point = new THREE.Vector3(pos.x + trans[0],pos.y,pos.z)
+	      point.sub(plane.ptOnPl);
+      if (point.dot(plane.normal) < EPS && point.projectOnPlane(plane.normal).length() < plane.length / 2 ) {
+		
+      }
+    }
+
+}
+
+</script>
+</body>
+
+</html>
