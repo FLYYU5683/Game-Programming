@@ -46,7 +46,7 @@ class CCDSys {
 
 		// convergence
 		const EPS = 1e-1;
-		const MAXITER = 150;
+		const MAXITER = 180;
 
 		let t_target = new THREE.Vector3();
 		let t_end = new THREE.Vector3();
